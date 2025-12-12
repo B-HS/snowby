@@ -4,7 +4,6 @@ import duration from 'dayjs/plugin/duration'
 dayjs.extend(duration)
 
 type MeasurementUnit = 'metric' | 'imperial'
-type TemperatureUnit = 'celsius' | 'fahrenheit'
 
 const CONVERSION = {
     kmToMi: 0.621371,
@@ -32,13 +31,6 @@ export const convertSpeed = (kmh: number, unit: MeasurementUnit) => {
     return kmh.toFixed(1)
 }
 
-export const convertTemperature = (celsius: number, unit: TemperatureUnit) => {
-    if (unit === 'fahrenheit') {
-        return Math.round(celsius * 1.8 + 32)
-    }
-    return Math.round(celsius)
-}
-
 export const formatDuration = (minutes: number) => {
     const d = dayjs.duration(minutes, 'minutes')
     const hours = Math.floor(d.asHours())
@@ -50,19 +42,27 @@ export const formatDuration = (minutes: number) => {
     return `${mins}m`
 }
 
-export const formatTime = (date: Date | string) => {
-    return dayjs(date).format('HH:mm')
-}
-
-export const formatDate = (date: Date | string) => {
-    return dayjs(date).format('YYYY-MM-DD')
-}
-
-export const formatDateTime = (date: Date | string) => {
-    return dayjs(date).format('YYYY-MM-DD HH:mm')
-}
-
 export const getDistanceUnit = (unit: MeasurementUnit) => (unit === 'imperial' ? 'mi' : 'km')
 export const getVerticalUnit = (unit: MeasurementUnit) => (unit === 'imperial' ? 'ft' : 'm')
 export const getSpeedUnit = (unit: MeasurementUnit) => (unit === 'imperial' ? 'mph' : 'km/h')
-export const getTemperatureUnit = (unit: TemperatureUnit) => (unit === 'fahrenheit' ? '°F' : '°C')
+
+export const formatStatValue = (
+    value: number | string | undefined,
+    unitType: string | null,
+    measurementUnit: MeasurementUnit
+) => {
+    if (value === undefined) return '-'
+
+    switch (unitType) {
+        case 'distance':
+            return `${convertDistance(value as number, measurementUnit)} ${getDistanceUnit(measurementUnit)}`
+        case 'vertical':
+            return `${convertVertical(value as number, measurementUnit)} ${getVerticalUnit(measurementUnit)}`
+        case 'speed':
+            return `${convertSpeed(value as number, measurementUnit)} ${getSpeedUnit(measurementUnit)}`
+        case 'duration':
+            return formatDuration(value as number)
+        default:
+            return String(value)
+    }
+}

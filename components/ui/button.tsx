@@ -67,7 +67,7 @@ const buttonTextVariants = cva(cn('text-sm font-medium text-foreground', Platfor
     },
 })
 
-type ButtonProps = React.ComponentProps & React.RefAttributes & VariantProps
+type ButtonProps = React.ComponentProps<typeof Pressable> & VariantProps<typeof buttonVariants>
 
 function Button({ className, variant, size, ...props }: ButtonProps) {
     return (

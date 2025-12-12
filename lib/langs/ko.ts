@@ -24,6 +24,14 @@ export const ko = {
     },
     history: {
         title: '기록',
+        follow: '팔로우',
+        unfollow: '언팔로우',
+        hide: '숨기기',
+        report: '신고',
+        friend: '친구',
+        all: '전체',
+        privateUser: '비공개 사용자',
+        noItems: '활동 내역이 없습니다',
     },
     rank: {
         title: '랭킹',
@@ -31,9 +39,17 @@ export const ko = {
         selectResort: '스키장 선택',
         searchCountry: '나라 이름 입력',
         searchResort: '스키장 이름 입력',
+        selectCountryFirst: '먼저 나라를 선택하세요',
+        noRankings: '랭킹이 없습니다',
         speed: '스피드',
         distance: '거리',
         count: '횟수',
+    },
+    alarm: {
+        title: '알림',
+        unread: '읽지 않음',
+        markAllAsRead: '모두 읽음 처리',
+        noAlarms: '알림이 없습니다',
     },
     user: {
         title: '프로필',

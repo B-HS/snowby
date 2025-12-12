@@ -3,7 +3,7 @@ import { Text } from '@/components/ui/text'
 import { TRACKING_STATS_SETTINGS } from '@/lib/constant'
 import { useTranslation } from '@/lib/i18n'
 import { useAppStore } from '@/lib/store'
-import { convertDistance, convertSpeed, convertVertical, getDistanceUnit, getSpeedUnit, getVerticalUnit } from '@/lib/units'
+import { formatStatValue } from '@/lib/units'
 import { FC, useEffect, useState } from 'react'
 import { View } from 'react-native'
 import { GpsSignal } from './gps-signal'
@@ -28,7 +28,7 @@ export const TrackingStats: FC<TrackingStatsProps> = ({ gpsLevel }) => {
     const [elapsedSeconds, setElapsedSeconds] = useState(0)
 
     useEffect(() => {
-        let interval: NodeJS.Timeout | null = null
+        let interval: ReturnType<typeof setInterval> | null = null
 
         if (trackingStatus === 'start' && trackingData.startTime) {
             const updateElapsed = () => {
@@ -47,19 +47,6 @@ export const TrackingStats: FC<TrackingStatsProps> = ({ gpsLevel }) => {
             if (interval) clearInterval(interval)
         }
     }, [trackingStatus, trackingData.startTime])
-
-    const formatValue = (value: number, unitType: string | null) => {
-        switch (unitType) {
-            case 'distance':
-                return `${convertDistance(value, measurementUnit)} ${getDistanceUnit(measurementUnit)}`
-            case 'vertical':
-                return `${convertVertical(value, measurementUnit)} ${getVerticalUnit(measurementUnit)}`
-            case 'speed':
-                return `${convertSpeed(value, measurementUnit)} ${getSpeedUnit(measurementUnit)}`
-            default:
-                return String(value)
-        }
-    }
 
     const formatCoordinate = (lat: number, lon: number) => {
         if (lat === 0 && lon === 0) return '--'
@@ -81,7 +68,7 @@ export const TrackingStats: FC<TrackingStatsProps> = ({ gpsLevel }) => {
                     <TrackingStatItem
                         key={key}
                         label={t(item.labelKey)}
-                        value={formatValue(trackingData[key as keyof typeof trackingData] as number, item.unitType)}
+                        value={formatStatValue(trackingData[key as keyof typeof trackingData] as number, item.unitType, measurementUnit)}
                         className='w-1/2'
                     />
                 ))}

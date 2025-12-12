@@ -24,6 +24,14 @@ export const en = {
     },
     history: {
         title: 'History',
+        follow: 'Follow',
+        unfollow: 'Unfollow',
+        hide: 'Hide',
+        report: 'Report',
+        friend: 'Friend',
+        all: 'All',
+        privateUser: 'Private User',
+        noItems: 'No activities found',
     },
     rank: {
         title: 'Ranking',
@@ -31,9 +39,17 @@ export const en = {
         selectResort: 'Select Resort',
         searchCountry: 'Enter Country Name',
         searchResort: 'Enter Resort Name',
+        selectCountryFirst: 'Select a country first',
+        noRankings: 'No rankings found',
         speed: 'Speed',
         distance: 'Distance',
         count: 'Count',
+    },
+    alarm: {
+        title: 'Notifications',
+        unread: 'Unread',
+        markAllAsRead: 'Mark all as read',
+        noAlarms: 'No notifications',
     },
     user: {
         title: 'Profile',

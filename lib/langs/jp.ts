@@ -24,6 +24,14 @@ export const jp = {
     },
     history: {
         title: '履歴',
+        follow: 'フォロー',
+        unfollow: 'フォロー解除',
+        hide: '非表示',
+        report: '通報',
+        friend: '友達',
+        all: 'すべて',
+        privateUser: '非公開ユーザー',
+        noItems: 'アクティビティがありません',
     },
     rank: {
         title: 'ランキング',
@@ -31,9 +39,17 @@ export const jp = {
         selectResort: 'スキー場を選択',
         searchCountry: '国名を入力',
         searchResort: 'スキー場名を入力',
+        selectCountryFirst: '先に国を選択してください',
+        noRankings: 'ランキングがありません',
         speed: 'スピード',
         distance: '距離',
         count: '回数',
+    },
+    alarm: {
+        title: '通知',
+        unread: '未読',
+        markAllAsRead: 'すべて既読にする',
+        noAlarms: '通知がありません',
     },
     user: {
         title: 'プロフィール',

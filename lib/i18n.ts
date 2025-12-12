@@ -31,5 +31,3 @@ export const useTranslation = () => {
 }
 
 export const t = (key: string, options?: Record<string, string | number>) => i18n.t(key, options)
-
-export const getSupportedLocales = () => Object.keys(translations) as Locale[]

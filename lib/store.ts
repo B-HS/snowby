@@ -38,6 +38,7 @@ type TrackingData = {
 }
 
 type AppState = {
+    _hasHydrated: boolean
     user: User
     isAuthenticated: boolean
     locale: Locale
@@ -47,6 +48,9 @@ type AppState = {
     notifications: NotificationSettings
     trackingStatus: TrackingStatus
     trackingData: TrackingData
+    followingUserIds: string[]
+    hiddenUserIds: string[]
+    setHasHydrated: (value: boolean) => void
     setUser: (user: User) => void
     logout: () => void
     setLocale: (locale: Locale) => void
@@ -60,11 +64,18 @@ type AppState = {
     setTrackingStatus: (status: TrackingStatus) => void
     updateTrackingData: (data: Partial<TrackingData>) => void
     resetTrackingData: () => void
+    followUser: (userId: string) => void
+    unfollowUser: (userId: string) => void
+    hideUser: (userId: string) => void
+    unhideUser: (userId: string) => void
+    isFollowing: (userId: string) => boolean
+    isHidden: (userId: string) => boolean
 }
 
 export const useAppStore = create<AppState>()(
     persist(
-        (set) => ({
+        (set, get) => ({
+            _hasHydrated: false,
             user: null,
             isAuthenticated: false,
             locale: (i18n.locale as Locale) || 'en',
@@ -89,6 +100,9 @@ export const useAppStore = create<AppState>()(
                 maxSpeed: 0,
                 locations: [],
             },
+            followingUserIds: [],
+            hiddenUserIds: [],
+            setHasHydrated: (value) => set({ _hasHydrated: value }),
             setUser: (user) => set({ user, isAuthenticated: !!user }),
             logout: () => set({ user: null, isAuthenticated: false }),
             setLocale: (locale) => {
@@ -122,20 +136,53 @@ export const useAppStore = create<AppState>()(
                         locations: [],
                     },
                 }),
+            followUser: (userId) =>
+                set((state) => ({
+                    followingUserIds: state.followingUserIds.includes(userId)
+                        ? state.followingUserIds
+                        : [...state.followingUserIds, userId],
+                })),
+            unfollowUser: (userId) =>
+                set((state) => ({
+                    followingUserIds: state.followingUserIds.filter((id) => id !== userId),
+                })),
+            hideUser: (userId) =>
+                set((state) => ({
+                    hiddenUserIds: state.hiddenUserIds.includes(userId)
+                        ? state.hiddenUserIds
+                        : [...state.hiddenUserIds, userId],
+                })),
+            unhideUser: (userId) =>
+                set((state) => ({
+                    hiddenUserIds: state.hiddenUserIds.filter((id) => id !== userId),
+                })),
+            isFollowing: (userId) => get().followingUserIds.includes(userId),
+            isHidden: (userId) => get().hiddenUserIds.includes(userId),
         }),
         {
             name: 'app-storage',
             storage: createJSONStorage(() => AsyncStorage),
-            onRehydrateStorage: () => (state) => {
-                if (state?.locale) {
-                    i18n.locale = state.locale
-                }
-                if (state?.theme) {
-                    const colorScheme =
-                        state.theme === 'system' ? Appearance.getColorScheme() ?? 'light' : state.theme
-                    Appearance.setColorScheme(colorScheme)
+            partialize: (state) => {
+                const { _hasHydrated, setHasHydrated, ...rest } = state
+                return rest
+            },
+            onRehydrateStorage: () => {
+                const startTime = Date.now()
+                console.log('[Store] Rehydration started:', startTime)
+                return (state) => {
+                    console.log('[Store] Rehydration completed:', Date.now(), 'elapsed:', Date.now() - startTime, 'ms')
+                    if (state?.locale) {
+                        i18n.locale = state.locale
+                    }
+                    if (state?.theme) {
+                        const colorScheme =
+                            state.theme === 'system' ? Appearance.getColorScheme() ?? 'light' : state.theme
+                        Appearance.setColorScheme(colorScheme)
+                    }
+                    useAppStore.setState({ _hasHydrated: true })
                 }
             },
         }
     )
 )
+

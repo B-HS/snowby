@@ -4,10 +4,12 @@ import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Text } from '@/components/ui/text'
 import { Toggle } from '@/components/ui/toggle'
+import { useUploadAvatar } from '@/entities/users/users.query'
 import { useTranslation } from '@/lib/i18n'
+import * as ImagePicker from 'expo-image-picker'
 import { X } from 'lucide-react-native'
 import { FC, useState } from 'react'
-import { Modal, Pressable, View } from 'react-native'
+import { ActivityIndicator, Modal, Pressable, View } from 'react-native'
 
 interface ProfileEditModalProps {
     visible: boolean
@@ -28,9 +30,30 @@ export const ProfileEditModal: FC<ProfileEditModalProps> = ({ visible, onClose, 
     const [bio, setBio] = useState(initialData.bio)
     const [isPublic, setIsPublic] = useState(initialData.isPublic)
 
-    const handleAvatarPress = () => {
-        // TODO: File handler - 추후 file upload 구현
-        console.log('Avatar pressed - File handler will be implemented')
+    const { mutate: uploadAvatar, isPending: isUploading } = useUploadAvatar()
+
+    const handleAvatarPress = async () => {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync()
+
+        if (!permissionResult.granted) {
+            return
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        })
+
+        if (!result.canceled && result.assets[0]) {
+            const imageUri = result.assets[0].uri
+            uploadAvatar(imageUri, {
+                onSuccess: (data) => {
+                    setAvatarURL(data.image)
+                },
+            })
+        }
     }
 
     const handleSave = () => {
@@ -51,13 +74,20 @@ export const ProfileEditModal: FC<ProfileEditModalProps> = ({ visible, onClose, 
                     <Separator />
                     <View className='p-4 gap-4'>
                         <View className='items-center gap-2'>
-                            <Pressable onPress={handleAvatarPress}>
-                                <Avatar alt='Profile' className='size-24'>
-                                    <AvatarImage source={{ uri: avatarURL }} />
-                                    <AvatarFallback>
-                                        <Text>{name?.slice(0, 2)}</Text>
-                                    </AvatarFallback>
-                                </Avatar>
+                            <Pressable onPress={handleAvatarPress} disabled={isUploading}>
+                                <View className='relative'>
+                                    <Avatar alt='Profile' className='size-24'>
+                                        <AvatarImage source={{ uri: avatarURL }} />
+                                        <AvatarFallback>
+                                            <Text>{name?.slice(0, 2)}</Text>
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    {isUploading && (
+                                        <View className='absolute inset-0 items-center justify-center bg-black/50 rounded-full'>
+                                            <ActivityIndicator color='white' />
+                                        </View>
+                                    )}
+                                </View>
                             </Pressable>
                             <Text className='text-sm text-primary/60'>{t('user.tapToChange')}</Text>
                         </View>

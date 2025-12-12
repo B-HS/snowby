@@ -67,7 +67,3 @@ export const stopBackgroundLocationTracking = async () => {
         await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)
     }
 }
-
-export const isBackgroundLocationTrackingActive = async () => {
-    return await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)
-}
