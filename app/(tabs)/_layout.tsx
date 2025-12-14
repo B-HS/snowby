@@ -1,13 +1,16 @@
 import { Icon } from '@/components/ui/icon'
 import { useTranslation } from '@/lib/i18n'
+import { useAppStore } from '@/lib/store'
 import { useColorScheme } from 'nativewind'
 import { Tabs } from 'expo-router'
-import { Flag, ScrollText, Settings, Trophy, User2 } from 'lucide-react-native'
+import { Flag, History, ScrollText, Settings, Trophy, User2 } from 'lucide-react-native'
 import { NAV_THEME, THEME } from '@/lib/theme'
 
 export default function TabLayout() {
     const { colorScheme } = useColorScheme()
     const { t } = useTranslation()
+    const user = useAppStore((state) => state.user)
+    const isLoggedIn = !!user
 
     return (
         <Tabs
@@ -36,10 +39,19 @@ export default function TabLayout() {
                 },
             }}>
             <Tabs.Screen
+                name='local-histories'
+                options={{
+                    title: t('localHistory.title'),
+                    tabBarIcon: ({ color, size }) => <Icon as={History} size={size} color={color} strokeWidth={1.5} />,
+                    href: isLoggedIn ? null : '/local-histories',
+                }}
+            />
+            <Tabs.Screen
                 name='history'
                 options={{
                     title: t('history.title'),
                     tabBarIcon: ({ color, size }) => <Icon as={ScrollText} size={size} color={color} strokeWidth={1.5} />,
+                    href: isLoggedIn ? '/history' : null,
                 }}
             />
             <Tabs.Screen

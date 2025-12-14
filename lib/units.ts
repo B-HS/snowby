@@ -1,8 +1,3 @@
-import dayjs from 'dayjs'
-import duration from 'dayjs/plugin/duration'
-
-dayjs.extend(duration)
-
 type MeasurementUnit = 'metric' | 'imperial'
 
 const CONVERSION = {
@@ -15,6 +10,21 @@ export const convertDistance = (km: number, unit: MeasurementUnit) => {
         return (km * CONVERSION.kmToMi).toFixed(1)
     }
     return km.toFixed(1)
+}
+
+export const formatDistanceFromMeters = (meters: number, unit: MeasurementUnit) => {
+    if (unit === 'imperial') {
+        const miles = (meters / 1000) * CONVERSION.kmToMi
+        if (miles < 0.1) {
+            return `${Math.round(meters * CONVERSION.mToFt)}ft`
+        }
+        return `${miles.toFixed(2)}mi`
+    }
+
+    if (meters < 1000) {
+        return `${Math.round(meters)}m`
+    }
+    return `${(meters / 1000).toFixed(2)}km`
 }
 
 export const convertVertical = (m: number, unit: MeasurementUnit) => {
@@ -31,15 +41,18 @@ export const convertSpeed = (kmh: number, unit: MeasurementUnit) => {
     return kmh.toFixed(1)
 }
 
-export const formatDuration = (minutes: number) => {
-    const d = dayjs.duration(minutes, 'minutes')
-    const hours = Math.floor(d.asHours())
-    const mins = d.minutes()
+export const formatDuration = (seconds: number) => {
+    const hrs = Math.floor(seconds / 3600)
+    const mins = Math.floor((seconds % 3600) / 60)
+    const secs = Math.floor(seconds % 60)
 
-    if (hours > 0) {
-        return `${hours}h ${mins}m`
+    if (hrs > 0) {
+        return `${hrs}h ${mins}m ${secs}s`
     }
-    return `${mins}m`
+    if (mins > 0) {
+        return `${mins}m ${secs}s`
+    }
+    return `${secs}s`
 }
 
 export const getDistanceUnit = (unit: MeasurementUnit) => (unit === 'imperial' ? 'mi' : 'km')

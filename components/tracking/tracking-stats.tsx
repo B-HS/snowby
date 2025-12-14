@@ -1,18 +1,19 @@
 import { Separator } from '@/components/ui/separator'
 import { Text } from '@/components/ui/text'
-import { TRACKING_STATS_SETTINGS } from '@/lib/constant'
 import { useTranslation } from '@/lib/i18n'
 import { useAppStore } from '@/lib/store'
-import { formatStatValue } from '@/lib/units'
+import { formatStatValue, formatDistanceFromMeters } from '@/lib/units'
+import type { TrackingData, TrackingStatus, ActivityState, GPSSignalLevel } from '@/lib/tracking/tracking.types'
 import { FC, useEffect, useState } from 'react'
 import { View } from 'react-native'
 import { GpsSignal } from './gps-signal'
 import { TrackingStatItem } from './tracking-stat-item'
 
-type SignalLevel = 'excellent' | 'good' | 'fair' | 'poor' | 'none'
-
 interface TrackingStatsProps {
-    gpsLevel: SignalLevel
+    gpsLevel: GPSSignalLevel
+    trackingStatus: TrackingStatus
+    trackingData: TrackingData
+    activityState: ActivityState
 }
 
 const formatElapsedTime = (seconds: number) => {
@@ -22,9 +23,20 @@ const formatElapsedTime = (seconds: number) => {
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
 
-export const TrackingStats: FC<TrackingStatsProps> = ({ gpsLevel }) => {
+const ACTIVITY_STATE_KEYS: Record<ActivityState, string> = {
+    skiing: 'tracking.skiing',
+    lifting: 'tracking.lifting',
+    resting: 'tracking.resting',
+}
+
+export const TrackingStats: FC<TrackingStatsProps> = ({
+    gpsLevel,
+    trackingStatus,
+    trackingData,
+    activityState,
+}) => {
     const { t } = useTranslation()
-    const { trackingData, trackingStatus, measurementUnit } = useAppStore()
+    const { measurementUnit } = useAppStore()
     const [elapsedSeconds, setElapsedSeconds] = useState(0)
 
     useEffect(() => {
@@ -60,19 +72,45 @@ export const TrackingStats: FC<TrackingStatsProps> = ({ gpsLevel }) => {
                     <GpsSignal level={gpsLevel} />
                     <Text className='text-xs text-primary/80'>GPS</Text>
                 </View>
-                <Text className='text-xs text-primary/80'>{formatCoordinate(trackingData.startLatitude, trackingData.startLongitude)}</Text>
+                <Text className='text-xs text-primary/80'>
+                    {formatCoordinate(trackingData.currentLatitude || trackingData.startLatitude, trackingData.currentLongitude || trackingData.startLongitude)}
+                </Text>
+                {trackingStatus !== 'stop' && (
+                    <Text className='text-xs font-medium'>{t(ACTIVITY_STATE_KEYS[activityState])}</Text>
+                )}
             </View>
             <Separator className='mb-2' />
             <View className='flex flex-row flex-wrap'>
-                {Object.entries(TRACKING_STATS_SETTINGS).map(([key, item]) => (
-                    <TrackingStatItem
-                        key={key}
-                        label={t(item.labelKey)}
-                        value={formatStatValue(trackingData[key as keyof typeof trackingData] as number, item.unitType, measurementUnit)}
-                        className='w-1/2'
-                    />
-                ))}
-                <TrackingStatItem label={t('tracking.totalTime')} value={formatElapsedTime(elapsedSeconds)} className='w-full' />
+                <TrackingStatItem
+                    label={t('tracking.totalDistance')}
+                    value={formatDistanceFromMeters(trackingData.totalDistance, measurementUnit)}
+                    className='w-1/2'
+                />
+                <TrackingStatItem
+                    label={t('tracking.maxVertical')}
+                    value={formatStatValue(trackingData.maxVertical, 'vertical', measurementUnit)}
+                    className='w-1/2'
+                />
+                <TrackingStatItem
+                    label={t('tracking.totalRuns')}
+                    value={`${trackingData.totalRuns}`}
+                    className='w-1/2'
+                />
+                <TrackingStatItem
+                    label={t('tracking.maxSpeed')}
+                    value={formatStatValue(trackingData.maxSpeed, 'speed', measurementUnit)}
+                    className='w-1/2'
+                />
+                <TrackingStatItem
+                    label={t('tracking.totalTime')}
+                    value={formatElapsedTime(elapsedSeconds)}
+                    className='w-1/2'
+                />
+                <TrackingStatItem
+                    label={t('tracking.timeOnSlope')}
+                    value={formatElapsedTime(trackingData.timeOnSlope)}
+                    className='w-1/2'
+                />
             </View>
         </View>
     )
