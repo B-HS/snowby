@@ -27,13 +27,7 @@ const getAlarmIcon = (type: AlarmItem['type']) => {
     }
 }
 
-const AlarmItemCard = ({
-    alarm,
-    onPress,
-}: {
-    alarm: AlarmItem
-    onPress: (alarmId: string) => void
-}) => {
+const AlarmItemCard = ({ alarm, onPress }: { alarm: AlarmItem; onPress: (alarmId: string) => void }) => {
     const IconComponent = getAlarmIcon(alarm.type)
 
     return (
@@ -87,11 +81,7 @@ const Alarm = () => {
                     <Text className='text-sm text-primary/60'>
                         {t('alarm.unread')}: {unreadCount}
                     </Text>
-                    <Button
-                        variant='ghost'
-                        size='sm'
-                        onPress={() => markAllAsRead()}
-                        disabled={isMarkingAll}>
+                    <Button variant='ghost' size='sm' onPress={() => markAllAsRead()} disabled={isMarkingAll}>
                         <Text className='text-sm text-blue-500'>{t('alarm.markAllAsRead')}</Text>
                     </Button>
                 </View>

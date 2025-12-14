@@ -1,11 +1,12 @@
 import { AccuracyCircle } from '@/components/tracking/accuracy-circle'
 import { TrackingControls } from '@/components/tracking/tracking-controls'
 import { TrackingStats } from '@/components/tracking/tracking-stats'
+import { Text } from '@/components/ui/text'
 import { useLocationTracking } from '@/lib/hooks/use-location-tracking'
 import { useAppStore } from '@/lib/store'
 import { Camera, CameraRef, LineLayer, MapView, ShapeSource } from '@maplibre/maplibre-react-native'
 import { useRouter } from 'expo-router'
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { View } from 'react-native'
 
 const SAMPLE_LOCATIONS: [number, number][] = [
@@ -17,12 +18,24 @@ const SAMPLE_LOCATIONS: [number, number][] = [
     [127.03, 37.4998],
 ]
 
+const MAP_STYLES = {
+    openfreemap: 'https://tiles.openfreemap.org/styles/liberty',
+    fallback: 'https://demotiles.maplibre.org/style.json',
+}
+
 const Home = () => {
     const router = useRouter()
     const cameraRef = useRef<CameraRef>(null)
     const { trackingData } = useAppStore()
     const { location, gpsLevel } = useLocationTracking()
-    const [scale] = useState(15)
+    const [scale] = useState(5)
+    const [mapStyle, setMapStyle] = useState(MAP_STYLES.openfreemap)
+
+    const handleMapLoadError = useCallback(() => {
+        if (mapStyle === MAP_STYLES.openfreemap) {
+            setMapStyle(MAP_STYLES.fallback)
+        }
+    }, [mapStyle])
 
     const locations = trackingData.locations.length > 0 ? trackingData.locations : SAMPLE_LOCATIONS
 
@@ -50,11 +63,26 @@ const Home = () => {
     }
 
     return (
-        <View className='flex-1'>
+        <View className='flex-1 pt-2'>
             <TrackingStats gpsLevel={gpsLevel} />
             <View className='h-1/2'>
-                <MapView style={{ flex: 1 }} mapStyle='https://tiles.openfreemap.org/styles/liberty' logoEnabled={false} attributionEnabled={false}>
-                    <Camera ref={cameraRef} centerCoordinate={centerCoordinate} zoomLevel={scale} animationMode='easeTo' animationDuration={300} />
+                <View>
+                    <Text>{location?.latitude}</Text>
+                    <Text>{location?.longitude}</Text>
+                </View>
+                <MapView
+                    style={{ flex: 1 }}
+                    mapStyle={mapStyle}
+                    logoEnabled={false}
+                    attributionEnabled={false}
+                    onDidFailLoadingMap={handleMapLoadError}>
+                    <Camera
+                        ref={cameraRef}
+                        centerCoordinate={centerCoordinate as [number, number]}
+                        zoomLevel={scale}
+                        animationMode='easeTo'
+                        animationDuration={500}
+                    />
                     {locations.length >= 2 && (
                         <ShapeSource id='route-source' shape={routeGeoJSON} lineMetrics>
                             <LineLayer

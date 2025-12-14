@@ -1,10 +1,7 @@
 import '@/global.css'
 
-import { Navigator } from '@/components/common/navigator'
-import { Separator } from '@/components/ui/separator'
-import { Text } from '@/components/ui/text'
-import { t } from '@/lib/i18n'
 import { queryClient } from '@/lib/query-client'
+import { useSession } from '@/lib/services/auth'
 import { useAppStore } from '@/lib/store'
 import { NAV_THEME } from '@/lib/theme'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -14,39 +11,32 @@ import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useColorScheme } from 'nativewind'
-import { ReactNode, useEffect } from 'react'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useEffect } from 'react'
 
 SplashScreen.preventAutoHideAsync()
-
-const ROUTE_TITLE_KEYS: Record<string, string> = {
-    index: 'home.title',
-    history: 'history.title',
-    rank: 'rank.title',
-    user: 'user.title',
-    setting: 'settings.title',
-    alarm: 'alarm.title',
-}
-
-const ScreenLayout = ({ children }: { children: ReactNode }) => {
-    return (
-        <SafeAreaView className='flex-1 pt-10 antialiased'>
-            <Separator />
-            {children}
-            <Navigator />
-        </SafeAreaView>
-    )
-}
 
 export default function RootLayout() {
     const { colorScheme } = useColorScheme()
     const hasHydrated = useAppStore((state) => state._hasHydrated)
+    const setUser = useAppStore((state) => state.setUser)
+    const { data: session } = useSession()
 
     useEffect(() => {
         if (hasHydrated) {
             SplashScreen.hideAsync()
         }
     }, [hasHydrated])
+
+    useEffect(() => {
+        if (session?.user) {
+            setUser({
+                id: session.user.id,
+                email: session.user.email,
+                name: session.user.name,
+                image: session.user.image ?? null,
+            })
+        }
+    }, [session, setUser])
 
     if (!hasHydrated) {
         return null
@@ -56,18 +46,10 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
             <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
                 <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-                <Stack
-                    screenOptions={({ route }) => {
-                        const routeName = route.name.replace('/index', '').replace('index', '') || 'index'
-                        const titleKey = ROUTE_TITLE_KEYS[routeName] || 'home.title'
-                        return {
-                            animation: 'none',
-                            headerTransparent: true,
-                            headerTitle: () => <Text className='text-xl font-bold'>{t(titleKey)}</Text>,
-                        }
-                    }}
-                    screenLayout={({ children }) => <ScreenLayout>{children}</ScreenLayout>}
-                />
+                <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name='(tabs)' />
+                    <Stack.Screen name='alarm/index' options={{ headerShown: true, title: 'Alarm' }} />
+                </Stack>
                 <PortalHost />
             </ThemeProvider>
         </QueryClientProvider>

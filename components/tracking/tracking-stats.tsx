@@ -54,7 +54,7 @@ export const TrackingStats: FC<TrackingStatsProps> = ({ gpsLevel }) => {
     }
 
     return (
-        <View className='flex-1 p-3'>
+        <View className='flex-1'>
             <View className='flex flex-row items-center justify-center gap-7 mb-2'>
                 <View className='flex flex-row items-center gap-2'>
                     <GpsSignal level={gpsLevel} />

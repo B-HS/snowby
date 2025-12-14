@@ -57,7 +57,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
                 isAccessMediaLocationEnabled: true,
             },
         ],
-        'expo-notifications',
+        // 'expo-notifications', // 개인 계정에서는 Push Notifications 불가
         'expo-sqlite',
         'expo-task-manager',
     ],

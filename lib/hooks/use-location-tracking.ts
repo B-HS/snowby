@@ -175,26 +175,37 @@ export const useLocationTracking = () => {
     }, [trackingStatus, startTracking, stopTracking])
 
     useEffect(() => {
+        let locationSubscription: Location.LocationSubscription | null = null
+
         const initLocation = async () => {
             const hasPermission = await requestPermission()
             if (!hasPermission) return
 
-            const currentLocation = await Location.getCurrentPositionAsync({
-                accuracy: Location.Accuracy.Balanced,
-            })
-
-            const { latitude, longitude, accuracy, altitude, speed } = currentLocation.coords
-            setLocation({
-                latitude,
-                longitude,
-                accuracy: accuracy ?? 0,
-                altitude,
-                speed,
-            })
-            setGpsLevel(getGpsLevelFromAccuracy(accuracy ?? 100))
+            locationSubscription = await Location.watchPositionAsync(
+                {
+                    accuracy: Location.Accuracy.BestForNavigation,
+                    timeInterval: 1000,
+                    distanceInterval: 1,
+                },
+                (newLocation) => {
+                    const { latitude, longitude, accuracy, altitude, speed } = newLocation.coords
+                    setLocation({
+                        latitude,
+                        longitude,
+                        accuracy: accuracy ?? 0,
+                        altitude,
+                        speed,
+                    })
+                    setGpsLevel(getGpsLevelFromAccuracy(accuracy ?? 100))
+                }
+            )
         }
 
         initLocation()
+
+        return () => {
+            locationSubscription?.remove()
+        }
     }, [requestPermission])
 
     return {

@@ -11,10 +11,9 @@ import { useUpdateProfile, useUserProfile, useUserSummary } from '@/entities/use
 import { useAppStore } from '@/lib/store'
 import type { HistoryItem } from '@/lib/types'
 import { getImageUrl } from '@/lib/utils'
-import { Stack } from 'expo-router'
 import { Edit } from 'lucide-react-native'
 import { useState } from 'react'
-import { ActivityIndicator, ScrollView, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 
 const User = () => {
     const [isModalVisible, setIsModalVisible] = useState(false)
@@ -26,12 +25,7 @@ const User = () => {
     const { mutate: updateProfile } = useUpdateProfile()
 
     if (!isAuthenticated) {
-        return (
-            <>
-                <Stack.Screen options={{ headerLeft: () => null }} />
-                <LoginScreen />
-            </>
-        )
+        return <LoginScreen />
     }
 
     const isLoading = isProfileLoading || isSummaryLoading || isHistoryLoading
@@ -46,23 +40,21 @@ const User = () => {
 
     return (
         <>
-            <Stack.Screen
-                options={{
-                    headerLeft: () => (
-                        <Button variant='ghost' size='icon' onPress={() => setIsModalVisible(true)}>
-                            <Icon as={Edit} size={20} className='text-primary' />
-                        </Button>
-                    ),
-                }}
-            />
             <ScrollView className='p-3.5' contentContainerClassName='gap-3.5'>
                 <View className='items-center gap-2'>
-                    <Avatar alt={`${user?.name}'s Avatar`} className='size-24'>
-                        <AvatarImage source={{ uri: getImageUrl(user?.image) }} />
-                        <AvatarFallback>
-                            <Text className='text-2xl'>{user?.name?.slice(0, 2)}</Text>
-                        </AvatarFallback>
-                    </Avatar>
+                    <View className='relative'>
+                        <Avatar alt={`${user?.name}'s Avatar`} className='size-24'>
+                            <AvatarImage source={{ uri: getImageUrl(user?.image) }} />
+                            <AvatarFallback>
+                                <Text className='text-2xl'>{user?.name?.slice(0, 2)}</Text>
+                            </AvatarFallback>
+                        </Avatar>
+                        <Pressable
+                            onPress={() => setIsModalVisible(true)}
+                            className='absolute -bottom-1 -right-1 rounded-full bg-primary p-1.5'>
+                            <Icon as={Edit} size={14} className='text-primary-foreground' />
+                        </Pressable>
+                    </View>
                     <Text className='text-xl font-bold'>{user?.name}</Text>
                     {userProfile?.bio && (
                         <Text className='text-center text-sm text-primary/70'>{userProfile.bio}</Text>
