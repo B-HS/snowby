@@ -1,15 +1,19 @@
 import { apiClient } from '@/entities/api-client'
-import type { Country, RankingItem, RankingParams, Resort } from '@/lib/types'
+import type { RankingItem, RankingType } from '@/lib/types'
 
-export const fetchCountries = () => apiClient<Country[]>('/api/rankings/countries')
+interface RankingsByBoundsParams {
+    bounds: { sw: [number, number]; ne: [number, number] } | null
+    type: RankingType
+}
 
-export const fetchResorts = (countryCode: string) =>
-    apiClient<Resort[]>(`/api/rankings/resorts/${countryCode}`)
-
-export const fetchRankings = (params: RankingParams) => {
+export const fetchRankingsByBounds = (params: RankingsByBoundsParams) => {
     const searchParams = new URLSearchParams()
     searchParams.set('type', params.type)
-    if (params.countryCode) searchParams.set('countryCode', params.countryCode)
-    if (params.resortId) searchParams.set('resortId', params.resortId)
+    if (params.bounds) {
+        searchParams.set('swLng', params.bounds.sw[0].toString())
+        searchParams.set('swLat', params.bounds.sw[1].toString())
+        searchParams.set('neLng', params.bounds.ne[0].toString())
+        searchParams.set('neLat', params.bounds.ne[1].toString())
+    }
     return apiClient<RankingItem[]>(`/api/rankings?${searchParams.toString()}`)
 }

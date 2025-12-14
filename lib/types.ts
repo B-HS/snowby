@@ -39,9 +39,30 @@ export type Country = {
 export type Resort = {
     id: string
     name: string
-    countryCode: string
-    latitude: number
-    longitude: number
+    nameEn: string
+    region: string
+    country: string
+    bounds: {
+        sw: [number, number]
+        ne: [number, number]
+    }
+    center: [number, number]
+    source: 'osm' | 'manual' | 'google'
+    status: 'active' | 'closed' | 'seasonal'
+}
+
+export type ResortsResponse = {
+    resorts: Resort[]
+    version: string
+    updatedAt: string
+}
+
+export type MatchedResort = {
+    id: string
+    name: string
+    nameEn: string
+    region: string
+    country: string
 }
 
 export type RankingType = 'speed' | 'distance' | 'count'

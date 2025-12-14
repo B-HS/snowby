@@ -1,8 +1,10 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Icon } from '@/components/ui/icon'
 import { Text } from '@/components/ui/text'
+import { useTranslation } from '@/lib/i18n'
+import { findResortByCoordinate } from '@/lib/utils/resort-matcher'
 import { MapPin, Trophy } from 'lucide-react-native'
-import { FC } from 'react'
+import { FC, useMemo } from 'react'
 import { View } from 'react-native'
 
 interface RankItemProps {
@@ -31,7 +33,15 @@ export const RankItem: FC<RankItemProps> = ({
     unit,
     rank,
 }) => {
+    const { t } = useTranslation()
     const rankDisplay = getRankDisplay(rank)
+
+    const resort = useMemo(() => {
+        if (locationLatitude && locationLongitude) {
+            return findResortByCoordinate(locationLatitude, locationLongitude)
+        }
+        return null
+    }, [locationLatitude, locationLongitude])
 
     return (
         <View className='bg-secondary/50 flex flex-row items-center justify-between p-2 px-3 rounded'>
@@ -55,7 +65,7 @@ export const RankItem: FC<RankItemProps> = ({
                         <View className='flex gap-px flex-row items-center'>
                             <Icon as={MapPin} size={12} className='text-primary/80' />
                             <Text className='text-sm text-primary/80'>
-                                {locationLatitude?.toFixed(4)}, {locationLongitude?.toFixed(4)}
+                                {resort?.id !== 'unknown' ? resort?.name : t('history.unknownResort')}
                             </Text>
                         </View>
                     </View>

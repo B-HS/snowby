@@ -4,7 +4,8 @@ import { useTranslation } from '@/lib/i18n'
 import { useAppStore } from '@/lib/store'
 import { formatStatValue, formatDistanceFromMeters } from '@/lib/units'
 import type { TrackingData, TrackingStatus, ActivityState, GPSSignalLevel } from '@/lib/tracking/tracking.types'
-import { FC, useEffect, useState } from 'react'
+import { findResortByCoordinate } from '@/lib/utils/resort-matcher'
+import { FC, useEffect, useMemo, useState } from 'react'
 import { View } from 'react-native'
 import { GpsSignal } from './gps-signal'
 import { TrackingStatItem } from './tracking-stat-item'
@@ -60,10 +61,14 @@ export const TrackingStats: FC<TrackingStatsProps> = ({
         }
     }, [trackingStatus, trackingData.startTime])
 
-    const formatCoordinate = (lat: number, lon: number) => {
-        if (lat === 0 && lon === 0) return '--'
-        return `${lat.toFixed(4)}, ${lon.toFixed(4)}`
-    }
+    const currentResort = useMemo(() => {
+        const lat = trackingData.currentLatitude || trackingData.startLatitude
+        const lng = trackingData.currentLongitude || trackingData.startLongitude
+        if (lat && lng) {
+            return findResortByCoordinate(lat, lng)
+        }
+        return null
+    }, [trackingData.currentLatitude, trackingData.currentLongitude, trackingData.startLatitude, trackingData.startLongitude])
 
     return (
         <View className='flex-1'>
@@ -73,7 +78,7 @@ export const TrackingStats: FC<TrackingStatsProps> = ({
                     <Text className='text-xs text-primary/80'>GPS</Text>
                 </View>
                 <Text className='text-xs text-primary/80'>
-                    {formatCoordinate(trackingData.currentLatitude || trackingData.startLatitude, trackingData.currentLongitude || trackingData.startLongitude)}
+                    {currentResort?.id !== 'unknown' ? currentResort?.name : t('history.unknownResort')}
                 </Text>
                 {trackingStatus !== 'stop' && (
                     <Text className='text-xs font-medium'>{t(ACTIVITY_STATE_KEYS[activityState])}</Text>

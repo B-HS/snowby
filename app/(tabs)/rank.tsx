@@ -2,10 +2,11 @@ import { RankItem } from '@/components/rank/rank-item'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Text } from '@/components/ui/text'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { useCountries, useRankings, useResorts } from '@/entities/rankings/rankings.query'
+import { useRankingsByBounds } from '@/entities/rankings/rankings.query'
 import { useTranslation } from '@/lib/i18n'
 import type { RankingType } from '@/lib/types'
-import { useState } from 'react'
+import { getAllResortsWithBounds, getResortsWithBoundsByRegion, getUniqueRegions } from '@/lib/utils/resort-matcher'
+import { useMemo, useState } from 'react'
 import { ActivityIndicator, Platform, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -19,25 +20,32 @@ const Rank = () => {
         right: 12,
     }
 
-    const [selectedCountry, setSelectedCountry] = useState<string | null>(null)
-    const [selectedResort, setSelectedResort] = useState<string | null>(null)
+    const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
+    const [selectedResortId, setSelectedResortId] = useState<string | null>(null)
     const [rankingType, setRankingType] = useState<RankingType>('speed')
 
-    const { data: countries } = useCountries()
-    const { data: resorts } = useResorts(selectedCountry ?? '')
-    const { data: rankings, isLoading: isRankingsLoading } = useRankings({
-        countryCode: selectedCountry,
-        resortId: selectedResort,
+    const regions = useMemo(() => getUniqueRegions(), [])
+    const resorts = useMemo(
+        () => (selectedRegion ? getResortsWithBoundsByRegion(selectedRegion) : getAllResortsWithBounds()),
+        [selectedRegion]
+    )
+
+    const selectedResort = useMemo(() => {
+        return resorts.find((r) => r.id === selectedResortId) ?? null
+    }, [resorts, selectedResortId])
+
+    const { data: rankings, isLoading: isRankingsLoading } = useRankingsByBounds({
+        bounds: selectedResort?.bounds ?? null,
         type: rankingType,
     })
 
-    const handleCountryChange = (value: string) => {
-        setSelectedCountry(value)
-        setSelectedResort(null)
+    const handleRegionChange = (value: string) => {
+        setSelectedRegion(value === 'all' ? null : value)
+        setSelectedResortId(null)
     }
 
     const handleResortChange = (value: string) => {
-        setSelectedResort(value)
+        setSelectedResortId(value === 'all' ? null : value)
     }
 
     const handleRankingTypeChange = (value: string | undefined) => {
@@ -51,16 +59,19 @@ const Rank = () => {
             <View className='flex flex-row gap-1.5'>
                 <Select
                     className='flex-1'
-                    value={{ value: selectedCountry ?? '', label: countries?.find((c) => c.code === selectedCountry)?.name ?? '' }}
-                    onValueChange={(option) => option && handleCountryChange(option.value)}>
+                    value={{ value: selectedRegion ?? 'all', label: selectedRegion ?? t('rank.all') }}
+                    onValueChange={(option) => option && handleRegionChange(option.value)}>
                     <SelectTrigger>
-                        <SelectValue placeholder={t('rank.selectCountry')} />
+                        <SelectValue placeholder={t('rank.all')} />
                     </SelectTrigger>
                     <SelectContent insets={contentInsets} className='mt-2 w-full'>
                         <SelectGroup>
-                            {countries?.map((country) => (
-                                <SelectItem key={country.code} label={country.name} value={country.code}>
-                                    {country.name}
+                            <SelectItem key='all' label={t('rank.all')} value='all'>
+                                {t('rank.all')}
+                            </SelectItem>
+                            {regions.map((region) => (
+                                <SelectItem key={region} label={region} value={region}>
+                                    {region}
                                 </SelectItem>
                             ))}
                         </SelectGroup>
@@ -68,23 +79,21 @@ const Rank = () => {
                 </Select>
                 <Select
                     className='flex-1'
-                    value={{ value: selectedResort ?? '', label: resorts?.find((r) => r.id === selectedResort)?.name ?? '' }}
+                    value={{ value: selectedResortId ?? 'all', label: resorts.find((r) => r.id === selectedResortId)?.name ?? t('rank.all') }}
                     onValueChange={(option) => option && handleResortChange(option.value)}>
                     <SelectTrigger>
-                        <SelectValue placeholder={t('rank.selectResort')} />
+                        <SelectValue placeholder={t('rank.all')} />
                     </SelectTrigger>
                     <SelectContent insets={contentInsets} className='mt-2 w-full'>
                         <SelectGroup>
-                            {resorts?.map((resort) => (
+                            <SelectItem key='all' label={t('rank.all')} value='all'>
+                                {t('rank.all')}
+                            </SelectItem>
+                            {resorts.map((resort) => (
                                 <SelectItem key={resort.id} label={resort.name} value={resort.id}>
                                     {resort.name}
                                 </SelectItem>
                             ))}
-                            {!selectedCountry && (
-                                <View className='items-center py-2'>
-                                    <Text className='text-sm text-primary/60'>{t('rank.selectCountryFirst')}</Text>
-                                </View>
-                            )}
                         </SelectGroup>
                     </SelectContent>
                 </Select>

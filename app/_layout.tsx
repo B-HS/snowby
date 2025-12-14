@@ -1,5 +1,6 @@
 import '@/global.css'
 
+import { fetchResorts } from '@/entities/resorts/resorts.api'
 import { queryClient } from '@/lib/query-client'
 import { useSession } from '@/lib/services/auth'
 import { useAppStore } from '@/lib/store'
@@ -13,7 +14,7 @@ import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useColorScheme } from 'nativewind'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 Logger.setLogCallback((log) => {
     if (log.message.includes('Failed to load tile') || log.message.includes('timed out')) {
@@ -29,15 +30,30 @@ export default function RootLayout() {
     const hasHydrated = useAppStore((state) => state._hasHydrated)
     const setUser = useAppStore((state) => state.setUser)
     const user = useAppStore((state) => state.user)
+    const resortsData = useAppStore((state) => state.resortsData)
+    const setResortsData = useAppStore((state) => state.setResortsData)
     const migrateAndSyncOnLogin = useTrackingStore((state) => state.migrateAndSyncOnLogin)
     const { data: session } = useSession()
     const previousUserId = useRef<string | null>(null)
 
+    const loadResorts = useCallback(async () => {
+        try {
+            const data = await fetchResorts()
+            if (data.version !== resortsData.version) {
+                console.log('[RootLayout] Updating resorts data:', data.version)
+                setResortsData(data)
+            }
+        } catch (error) {
+            console.warn('[RootLayout] Failed to fetch resorts:', error)
+        }
+    }, [resortsData.version, setResortsData])
+
     useEffect(() => {
         if (hasHydrated) {
             SplashScreen.hideAsync()
+            loadResorts()
         }
-    }, [hasHydrated])
+    }, [hasHydrated, loadResorts])
 
     useEffect(() => {
         if (session?.user) {

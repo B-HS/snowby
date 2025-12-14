@@ -1,22 +1,25 @@
 import { SettingRow } from '@/components/setting/setting-row'
 import { SettingSection } from '@/components/setting/setting-section'
 import { SettingToggleGroup } from '@/components/setting/setting-toggle-group'
+import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
 import { Text } from '@/components/ui/text'
 import { Toggle } from '@/components/ui/toggle'
+import { fetchResorts } from '@/entities/resorts/resorts.api'
 import { LOCALE_OPTIONS, MEASUREMENT_OPTIONS, NOTIFICATION_OPTIONS, TEMPERATURE_OPTIONS, THEME_OPTIONS } from '@/lib/constant'
 import { useTranslation } from '@/lib/i18n'
 import { useSettingsSync } from '@/lib/settings-sync'
 import { useAppStore } from '@/lib/store'
 import type { Theme } from '@/lib/types'
-import { Bell, Globe, Ruler, Sun } from 'lucide-react-native'
+import { Bell, Database, Globe, RefreshCw, Ruler, Sun } from 'lucide-react-native'
 import { useColorScheme } from 'nativewind'
-import { Appearance, ScrollView } from 'react-native'
+import { useCallback, useState } from 'react'
+import { Alert, Appearance, ScrollView } from 'react-native'
 
 const Setting = () => {
     const { t } = useTranslation()
     const { setColorScheme } = useColorScheme()
-    const { locale, theme, temperatureUnit, measurementUnit, notifications } = useAppStore()
+    const { locale, theme, temperatureUnit, measurementUnit, notifications, resortsData, setResortsData } = useAppStore()
     const {
         setLocaleWithSync,
         setThemeWithSync,
@@ -24,6 +27,7 @@ const Setting = () => {
         setMeasurementUnitWithSync,
         setNotificationWithSync,
     } = useSettingsSync()
+    const [isRefreshing, setIsRefreshing] = useState(false)
 
     const handleThemeChange = (value: Theme) => {
         setThemeWithSync(value)
@@ -34,6 +38,23 @@ const Setting = () => {
             setColorScheme(value)
         }
     }
+
+    const handleRefreshResorts = useCallback(async () => {
+        setIsRefreshing(true)
+        try {
+            const data = await fetchResorts()
+            if (data.version !== resortsData.version) {
+                setResortsData(data)
+                Alert.alert(t('settings.resortData'), t('settings.resortDataUpdated'))
+            } else {
+                Alert.alert(t('settings.resortData'), t('settings.resortDataUpToDate'))
+            }
+        } catch {
+            Alert.alert(t('settings.resortData'), t('settings.resortDataError'))
+        } finally {
+            setIsRefreshing(false)
+        }
+    }, [resortsData.version, setResortsData, t])
 
     return (
         <ScrollView className='p-3.5' contentContainerClassName='gap-3.5'>
@@ -66,6 +87,17 @@ const Setting = () => {
                         </Toggle>
                     </SettingRow>
                 ))}
+            </SettingSection>
+
+            <SettingSection title={t('settings.data')} icon={<Icon as={Database} size={16} className='text-primary' />}>
+                <SettingRow label={t('settings.resortData')}>
+                    <Text className='text-xs text-muted-foreground'>v{resortsData.version || '-'}</Text>
+                </SettingRow>
+                <SettingRow label={t('settings.refreshResortData')} isLast>
+                    <Button variant='outline' size='sm' onPress={handleRefreshResorts} disabled={isRefreshing}>
+                        <Icon as={RefreshCw} size={14} className={isRefreshing ? 'animate-spin' : ''} />
+                    </Button>
+                </SettingRow>
             </SettingSection>
         </ScrollView>
     )

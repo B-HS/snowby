@@ -8,10 +8,11 @@ import { useCrashRecovery } from '@/lib/hooks/use-crash-recovery'
 import { useTracking } from '@/lib/hooks/use-tracking'
 import { useTranslation } from '@/lib/i18n'
 import { useAppStore } from '@/lib/store'
+import { findResortByCoordinate } from '@/lib/utils/resort-matcher'
 import { Camera, CameraRef, LineLayer, MapView, ShapeSource } from '@maplibre/maplibre-react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'expo-router'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { View } from 'react-native'
 
 const SAMPLE_SEGMENTS: [number, number][][] = [
@@ -41,6 +42,13 @@ const Home = () => {
         useTracking(userId)
 
     const { showRecoveryModal, unfinishedSession, handleRecovery, dismissRecovery } = useCrashRecovery(userId)
+
+    const currentResort = useMemo(() => {
+        if (location) {
+            return findResortByCoordinate(location.latitude, location.longitude)
+        }
+        return null
+    }, [location])
 
     const [scale] = useState(14)
     const [mapStyle, setMapStyle] = useState(MAP_STYLES.openfreemap)
@@ -100,7 +108,9 @@ const Home = () => {
                             {location ? `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}` : '--'}
                         </Text>
                         <Text className='text-xs text-gray-500'>{location ? `${((location.speed ?? 0) * 3.6).toFixed(1)}km/h` : '--'}</Text>
-                        <Text className='text-xs text-gray-500'>{location ? `${(location.altitude ?? 0).toFixed(0)}m` : '--'}</Text>
+                        <Text className='text-xs text-blue-500'>
+                            {currentResort?.id !== 'unknown' ? currentResort?.name : '--'}
+                        </Text>
                         <Link href='/test' className='text-xs text-blue-500'>
                             {t('test.title')}
                         </Link>

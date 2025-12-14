@@ -7,8 +7,9 @@ import { useAppStore } from '@/lib/store'
 import type { TrackingSession } from '@/lib/tracking/tracking.types'
 import { formatStatValue, formatDistanceFromMeters } from '@/lib/units'
 import { cn } from '@/lib/utils'
+import { findResortByCoordinate } from '@/lib/utils/resort-matcher'
 import { Clock, MapPin, Snowflake } from 'lucide-react-native'
-import { FC } from 'react'
+import { FC, useMemo } from 'react'
 import { View } from 'react-native'
 import { HistoryCardItem } from './history-card-item'
 
@@ -30,6 +31,13 @@ const formatDate = (timestamp: number) => {
 export const LocalHistoryCard: FC<LocalHistoryCardProps> = ({ session }) => {
     const { t } = useTranslation()
     const { measurementUnit } = useAppStore()
+
+    const resort = useMemo(() => {
+        if (session.startLatitude && session.startLongitude) {
+            return findResortByCoordinate(session.startLatitude, session.startLongitude)
+        }
+        return null
+    }, [session.startLatitude, session.startLongitude])
 
     const statsData = {
         totalDistance: session.totalDistance,
@@ -56,7 +64,7 @@ export const LocalHistoryCard: FC<LocalHistoryCardProps> = ({ session }) => {
                         <View className='flex gap-px flex-row items-center'>
                             <Icon as={MapPin} size={12} className='text-primary/80' />
                             <Text className='text-sm text-primary/80'>
-                                {session.startLatitude.toFixed(4)}, {session.startLongitude.toFixed(4)}
+                                {resort?.id !== 'unknown' ? resort?.name : t('history.unknownResort')}
                             </Text>
                         </View>
                     </View>

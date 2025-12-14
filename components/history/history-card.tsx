@@ -10,8 +10,9 @@ import { useTranslation } from '@/lib/i18n'
 import { useAppStore } from '@/lib/store'
 import { formatStatValue } from '@/lib/units'
 import { cn, getImageUrl } from '@/lib/utils'
+import { findResortByCoordinate } from '@/lib/utils/resort-matcher'
 import { AlertTriangle, EyeOff, MapPin, MoreVertical, User, UserMinus, UserPlus } from 'lucide-react-native'
-import { FC, useState } from 'react'
+import { FC, useMemo, useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { HistoryCardItem } from './history-card-item'
 
@@ -56,6 +57,13 @@ export const HistoryCard: FC<HistoryCardProps> = ({
     const { t } = useTranslation()
     const { measurementUnit } = useAppStore()
     const [isProfileModalVisible, setIsProfileModalVisible] = useState(false)
+
+    const resort = useMemo(() => {
+        if (locationLatitude && locationLongitude) {
+            return findResortByCoordinate(locationLatitude, locationLongitude)
+        }
+        return null
+    }, [locationLatitude, locationLongitude])
 
     const handleFollowToggle = () => {
         if (!userId) return
@@ -113,7 +121,7 @@ export const HistoryCard: FC<HistoryCardProps> = ({
                             <View className='flex gap-px flex-row items-center'>
                                 <Icon as={MapPin} size={12} className='text-primary/80' />
                                 <Text className='text-sm text-primary/80'>
-                                    {locationLatitude?.toFixed(4)}, {locationLongitude?.toFixed(4)}
+                                    {resort?.id !== 'unknown' ? resort?.name : t('history.unknownResort')}
                                 </Text>
                             </View>
                         </View>

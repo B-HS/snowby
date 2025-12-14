@@ -4,6 +4,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
 import { i18n } from './i18n'
+import type { Resort } from './types'
 
 type Locale = 'en' | 'ko' | 'jp'
 type Theme = 'light' | 'dark' | 'system'
@@ -23,6 +24,12 @@ type User = {
     name: string
     image: string | null
 } | null
+
+type ResortsData = {
+    resorts: Resort[]
+    version: string
+    updatedAt: string
+}
 
 type TrackingData = {
     startTime: number | null
@@ -50,6 +57,7 @@ type AppState = {
     trackingData: TrackingData
     followingUserIds: string[]
     hiddenUserIds: string[]
+    resortsData: ResortsData
     setHasHydrated: (value: boolean) => void
     setUser: (user: User) => void
     logout: () => void
@@ -70,6 +78,7 @@ type AppState = {
     unhideUser: (userId: string) => void
     isFollowing: (userId: string) => boolean
     isHidden: (userId: string) => boolean
+    setResortsData: (data: ResortsData) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -102,6 +111,11 @@ export const useAppStore = create<AppState>()(
             },
             followingUserIds: [],
             hiddenUserIds: [],
+            resortsData: {
+                resorts: [],
+                version: '',
+                updatedAt: '',
+            },
             setHasHydrated: (value) => set({ _hasHydrated: value }),
             setUser: (user) => set({ user, isAuthenticated: !!user }),
             logout: () => set({ user: null, isAuthenticated: false }),
@@ -158,6 +172,7 @@ export const useAppStore = create<AppState>()(
                 })),
             isFollowing: (userId) => get().followingUserIds.includes(userId),
             isHidden: (userId) => get().hiddenUserIds.includes(userId),
+            setResortsData: (data) => set({ resortsData: data }),
         }),
         {
             name: 'app-storage',

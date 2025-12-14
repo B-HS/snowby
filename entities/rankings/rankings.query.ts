@@ -1,30 +1,18 @@
-import type { RankingParams } from '@/lib/types'
+import type { RankingType } from '@/lib/types'
 import { useQuery } from '@tanstack/react-query'
-import { fetchCountries, fetchRankings, fetchResorts } from './rankings.api'
+import { fetchRankingsByBounds } from './rankings.api'
 
-export const rankingKeys = {
-    countries: () => ['ranking', 'countries'] as const,
-    resorts: (countryCode: string) => ['ranking', 'resorts', countryCode] as const,
-    list: (params: RankingParams) => ['ranking', 'list', params] as const,
+interface RankingsByBoundsParams {
+    bounds: { sw: [number, number]; ne: [number, number] } | null
+    type: RankingType
 }
 
-export const useCountries = () =>
-    useQuery({
-        queryKey: rankingKeys.countries(),
-        queryFn: fetchCountries,
-        staleTime: 1000 * 60 * 60 * 24,
-    })
+export const rankingKeys = {
+    byBounds: (params: RankingsByBoundsParams) => ['ranking', 'byBounds', params] as const,
+}
 
-export const useResorts = (countryCode: string) =>
+export const useRankingsByBounds = (params: RankingsByBoundsParams) =>
     useQuery({
-        queryKey: rankingKeys.resorts(countryCode),
-        queryFn: () => fetchResorts(countryCode),
-        enabled: !!countryCode,
-        staleTime: 1000 * 60 * 60,
-    })
-
-export const useRankings = (params: RankingParams) =>
-    useQuery({
-        queryKey: rankingKeys.list(params),
-        queryFn: () => fetchRankings(params),
+        queryKey: rankingKeys.byBounds(params),
+        queryFn: () => fetchRankingsByBounds(params),
     })
