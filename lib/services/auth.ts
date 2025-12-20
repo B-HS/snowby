@@ -1,10 +1,9 @@
 import { createAuthClient } from 'better-auth/react'
-import { expoClient, getCookie } from '@better-auth/expo/client'
+import { expoClient } from '@better-auth/expo/client'
 import * as SecureStore from 'expo-secure-store'
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL
 const STORAGE_PREFIX = 'snowby'
-const COOKIE_KEY = `${STORAGE_PREFIX}_cookie`
 
 export const authClient = createAuthClient({
     baseURL: API_BASE_URL,
@@ -28,8 +27,7 @@ export const authClient = createAuthClient({
 })
 
 export const getAuthCookie = () => {
-    const storedCookie = SecureStore.getItem(COOKIE_KEY) || '{}'
-    return getCookie(storedCookie)
+    return authClient.getCookie() || ''
 }
 
 export const signInWithGoogle = async () => {

@@ -18,7 +18,7 @@ export const apiClient = async <T>(endpoint: string, options: RequestOptions = {
         method,
         headers: {
             'Content-Type': 'application/json',
-            cookie,
+            Cookie: cookie,
             ...headers,
         },
         credentials: 'omit',

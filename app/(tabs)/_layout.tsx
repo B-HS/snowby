@@ -1,16 +1,25 @@
 import { Icon } from '@/components/ui/icon'
+import { Text } from '@/components/ui/text'
+import { signOut } from '@/lib/services/auth'
 import { useTranslation } from '@/lib/i18n'
 import { useAppStore } from '@/lib/store'
 import { useColorScheme } from 'nativewind'
 import { Tabs } from 'expo-router'
-import { Flag, History, ScrollText, Settings, Trophy, User2 } from 'lucide-react-native'
+import { Flag, History, LogOut, ScrollText, Settings, Trophy, User2 } from 'lucide-react-native'
 import { NAV_THEME, THEME } from '@/lib/theme'
+import { Pressable } from 'react-native'
+import { Button } from '@/components/ui/button'
 
 export default function TabLayout() {
     const { colorScheme } = useColorScheme()
     const { t } = useTranslation()
-    const user = useAppStore((state) => state.user)
+    const { user, logout } = useAppStore()
     const isLoggedIn = !!user
+
+    const handleLogout = async () => {
+        await signOut()
+        logout()
+    }
 
     return (
         <Tabs
@@ -73,6 +82,12 @@ export default function TabLayout() {
                 options={{
                     title: t('user.title'),
                     tabBarIcon: ({ color, size }) => <Icon as={User2} size={size} color={color} strokeWidth={1.5} />,
+                    headerLeft: () =>
+                        isLoggedIn ? (
+                            <Button onPress={handleLogout} variant={'ghost'} size={'icon'}>
+                                <Icon as={LogOut} size={18} className='text-destructive' />
+                            </Button>
+                        ) : null,
                 }}
             />
             <Tabs.Screen
