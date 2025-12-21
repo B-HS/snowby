@@ -189,3 +189,74 @@ export const getUniqueRegions = (): string[] => {
     const regions = new Set(resorts.filter((r) => r.status === 'active').map((r) => r.region))
     return Array.from(regions).sort()
 }
+
+export const calculateZoomFromBounds = (
+    bounds: { sw: [number, number]; ne: [number, number] },
+    mapWidth: number = 400,
+    mapHeight: number = 300
+): number => {
+    const [swLng, swLat] = bounds.sw
+    const [neLng, neLat] = bounds.ne
+
+    const lngDiff = Math.abs(neLng - swLng)
+
+    const WORLD_DIM = { height: 256, width: 256 }
+    const ZOOM_MAX = 18
+
+    const latRad = (lat: number) => {
+        const sin = Math.sin((lat * Math.PI) / 180)
+        const radX2 = Math.log((1 + sin) / (1 - sin)) / 2
+        return Math.max(Math.min(radX2, Math.PI), -Math.PI) / 2
+    }
+
+    const zoom = (mapPx: number, worldPx: number, fraction: number) => {
+        return Math.floor(Math.log(mapPx / worldPx / fraction) / Math.LN2)
+    }
+
+    const latFraction = (latRad(neLat) - latRad(swLat)) / Math.PI
+    const lngFraction = lngDiff / 360
+
+    const latZoom = zoom(mapHeight, WORLD_DIM.height, latFraction)
+    const lngZoom = zoom(mapWidth, WORLD_DIM.width, lngFraction)
+
+    return Math.min(latZoom, lngZoom, ZOOM_MAX)
+}
+
+export const getCameraPositionForResort = (
+    lat: number,
+    lng: number,
+    mapWidth: number = 400,
+    mapHeight: number = 300
+): { coordinates: { latitude: number; longitude: number }; zoom: number } => {
+    const resort = findResortByCoordinate(lat, lng)
+
+    if (resort.id === 'unknown') {
+        return {
+            coordinates: { latitude: lat, longitude: lng },
+            zoom: 14,
+        }
+    }
+
+    const resorts = getResorts()
+    const fullResort = resorts.find((r) => r.id === resort.id)
+
+    if (!fullResort) {
+        return {
+            coordinates: { latitude: lat, longitude: lng },
+            zoom: 14,
+        }
+    }
+
+    const [swLng, swLat] = fullResort.bounds.sw
+    const [neLng, neLat] = fullResort.bounds.ne
+
+    const centerLat = (swLat + neLat) / 2
+    const centerLng = (swLng + neLng) / 2
+
+    const zoom = calculateZoomFromBounds(fullResort.bounds, mapWidth, mapHeight)
+
+    return {
+        coordinates: { latitude: centerLat, longitude: centerLng },
+        zoom: Math.min(zoom + 0.5, 16),
+    }
+}

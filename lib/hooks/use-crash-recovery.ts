@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useTrackingStore } from '@/lib/tracking/tracking.store'
-import type { UnfinishedSessionInfo, RecoveryOption } from '@/lib/tracking/tracking.types'
+import type { RecoveryOption } from '@/lib/tracking/tracking.types'
 
 export const useCrashRecovery = (userId: string | null) => {
     const [showRecoveryModal, setShowRecoveryModal] = useState(false)
-    const { unfinishedSession, checkUnfinishedSession, handleRecoveryOption, isInitialized } =
+    const [recoveryError, setRecoveryError] = useState<string | null>(null)
+    const { unfinishedSession, handleRecoveryOption, isInitialized } =
         useTrackingStore()
 
     useEffect(() => {
@@ -17,12 +18,22 @@ export const useCrashRecovery = (userId: string | null) => {
 
     const handleRecovery = async (option: RecoveryOption) => {
         if (!userId) return
-        await handleRecoveryOption(option, userId)
-        setShowRecoveryModal(false)
+
+        setRecoveryError(null)
+
+        try {
+            await handleRecoveryOption(option, userId)
+            setShowRecoveryModal(false)
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Recovery failed'
+            setRecoveryError(errorMessage)
+            console.error('[CrashRecovery] Error:', errorMessage)
+        }
     }
 
     const dismissRecovery = () => {
         setShowRecoveryModal(false)
+        setRecoveryError(null)
     }
 
     return {
@@ -30,5 +41,6 @@ export const useCrashRecovery = (userId: string | null) => {
         unfinishedSession,
         handleRecovery,
         dismissRecovery,
+        recoveryError,
     }
 }

@@ -73,6 +73,7 @@ const User = () => {
                 {myHistoryItems?.map((item: HistoryItem) => (
                     <HistoryCard
                         key={item.id}
+                        activityId={item.id}
                         userId={item.userId}
                         username={item.username}
                         avatarURL={item.avatarURL}

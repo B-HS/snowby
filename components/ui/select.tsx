@@ -15,14 +15,14 @@ const Select = SelectPrimitive.Root;
 
 const SelectGroup = SelectPrimitive.Group;
 
-function SelectValue({
+const SelectValue = ({
   ref,
   className,
   ...props
 }: SelectPrimitive.ValueProps &
   React.RefAttributes<SelectPrimitive.ValueRef> & {
     className?: string;
-  }) {
+  }) => {
   const { value } = SelectPrimitive.useRootContext();
   return (
     <SelectPrimitive.Value
@@ -37,7 +37,7 @@ function SelectValue({
   );
 }
 
-function SelectTrigger({
+const SelectTrigger = ({
   ref,
   className,
   children,
@@ -47,7 +47,7 @@ function SelectTrigger({
   React.RefAttributes<SelectPrimitive.TriggerRef> & {
     children?: React.ReactNode;
     size?: 'default' | 'sm';
-  }) {
+  }) => {
   return (
     <SelectPrimitive.Trigger
       ref={ref}
@@ -69,7 +69,7 @@ function SelectTrigger({
 
 const FullWindowOverlay = Platform.OS === 'ios' ? RNFullWindowOverlay : React.Fragment;
 
-function SelectContent({
+const SelectContent = ({
   className,
   children,
   position = 'popper',
@@ -79,7 +79,7 @@ function SelectContent({
   React.RefAttributes<SelectPrimitive.ContentRef> & {
     className?: string;
     portalHost?: string;
-  }) {
+  }) => {
   return (
     <SelectPrimitive.Portal hostName={portalHost}>
       <FullWindowOverlay>
@@ -132,10 +132,10 @@ function SelectContent({
   );
 }
 
-function SelectLabel({
+const SelectLabel = ({
   className,
   ...props
-}: SelectPrimitive.LabelProps & React.RefAttributes<SelectPrimitive.LabelRef>) {
+}: SelectPrimitive.LabelProps & React.RefAttributes<SelectPrimitive.LabelRef>) => {
   return (
     <SelectPrimitive.Label
       className={cn('text-muted-foreground px-2 py-2 text-xs sm:py-1.5', className)}
@@ -144,11 +144,11 @@ function SelectLabel({
   );
 }
 
-function SelectItem({
+const SelectItem = ({
   className,
   children,
   ...props
-}: SelectPrimitive.ItemProps & React.RefAttributes<SelectPrimitive.ItemRef>) {
+}: SelectPrimitive.ItemProps & React.RefAttributes<SelectPrimitive.ItemRef>) => {
   return (
     <SelectPrimitive.Item
       className={cn(
@@ -170,10 +170,10 @@ function SelectItem({
   );
 }
 
-function SelectSeparator({
+const SelectSeparator = ({
   className,
   ...props
-}: SelectPrimitive.SeparatorProps & React.RefAttributes<SelectPrimitive.SeparatorRef>) {
+}: SelectPrimitive.SeparatorProps & React.RefAttributes<SelectPrimitive.SeparatorRef>) => {
   return (
     <SelectPrimitive.Separator
       className={cn(
@@ -186,14 +186,10 @@ function SelectSeparator({
   );
 }
 
-/**
- * @platform Web only
- * Returns null on native platforms
- */
-function SelectScrollUpButton({
+const SelectScrollUpButton = ({
   className,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.ScrollUpButton>) {
+}: React.ComponentProps<typeof SelectPrimitive.ScrollUpButton>) => {
   if (Platform.OS !== 'web') {
     return null;
   }
@@ -206,14 +202,10 @@ function SelectScrollUpButton({
   );
 }
 
-/**
- * @platform Web only
- * Returns null on native platforms
- */
-function SelectScrollDownButton({
+const SelectScrollDownButton = ({
   className,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.ScrollDownButton>) {
+}: React.ComponentProps<typeof SelectPrimitive.ScrollDownButton>) => {
   if (Platform.OS !== 'web') {
     return null;
   }
@@ -226,11 +218,7 @@ function SelectScrollDownButton({
   );
 }
 
-/**
- * @platform Native only
- * Returns the children on the web
- */
-function NativeSelectScrollView({ className, ...props }: React.ComponentProps<typeof ScrollView>) {
+const NativeSelectScrollView = ({ className, ...props }: React.ComponentProps<typeof ScrollView>) => {
   if (Platform.OS === 'web') {
     return <>{props.children}</>;
   }

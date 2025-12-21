@@ -15,6 +15,7 @@ interface TrackingStatsProps {
     trackingStatus: TrackingStatus
     trackingData: TrackingData
     activityState: ActivityState
+    currentLocation?: { latitude: number; longitude: number } | null
 }
 
 const formatElapsedTime = (seconds: number) => {
@@ -35,6 +36,7 @@ export const TrackingStats: FC<TrackingStatsProps> = ({
     trackingStatus,
     trackingData,
     activityState,
+    currentLocation,
 }) => {
     const { t } = useTranslation()
     const { measurementUnit } = useAppStore()
@@ -62,13 +64,16 @@ export const TrackingStats: FC<TrackingStatsProps> = ({
     }, [trackingStatus, trackingData.startTime])
 
     const currentResort = useMemo(() => {
+        if (currentLocation) {
+            return findResortByCoordinate(currentLocation.latitude, currentLocation.longitude)
+        }
         const lat = trackingData.currentLatitude || trackingData.startLatitude
         const lng = trackingData.currentLongitude || trackingData.startLongitude
         if (lat && lng) {
             return findResortByCoordinate(lat, lng)
         }
         return null
-    }, [trackingData.currentLatitude, trackingData.currentLongitude, trackingData.startLatitude, trackingData.startLongitude])
+    }, [currentLocation, trackingData.currentLatitude, trackingData.currentLongitude, trackingData.startLatitude, trackingData.startLongitude])
 
     return (
         <View className='flex-1'>

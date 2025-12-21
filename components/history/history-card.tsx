@@ -5,6 +5,7 @@ import { Icon } from '@/components/ui/icon'
 import { Separator } from '@/components/ui/separator'
 import { Text } from '@/components/ui/text'
 import { UserProfileModal } from '@/components/user/user-profile-modal'
+import { HistoryDetailModal } from '@/components/history/history-detail-modal'
 import { HISTORY_CARD_ITEM_SETTINGS } from '@/lib/constant'
 import { useTranslation } from '@/lib/i18n'
 import { useAppStore } from '@/lib/store'
@@ -17,6 +18,7 @@ import { Pressable, View } from 'react-native'
 import { HistoryCardItem } from './history-card-item'
 
 interface HistoryCardProps {
+    activityId?: string
     userId?: string
     username?: string
     avatarURL?: string
@@ -30,8 +32,6 @@ interface HistoryCardProps {
     runs?: number
     isPublic?: boolean
     isFollowing?: boolean
-    bio?: string
-    activityTypes?: ('ski' | 'snowboard')[]
     onFollow?: (userId: string) => void
     onUnfollow?: (userId: string) => void
     onHide?: (userId: string) => void
@@ -39,6 +39,7 @@ interface HistoryCardProps {
 }
 
 export const HistoryCard: FC<HistoryCardProps> = ({
+    activityId,
     userId,
     username,
     avatarURL,
@@ -46,8 +47,6 @@ export const HistoryCard: FC<HistoryCardProps> = ({
     locationLongitude,
     isPublic = true,
     isFollowing = false,
-    bio,
-    activityTypes,
     onFollow,
     onUnfollow,
     onHide,
@@ -57,6 +56,7 @@ export const HistoryCard: FC<HistoryCardProps> = ({
     const { t } = useTranslation()
     const { measurementUnit } = useAppStore()
     const [isProfileModalVisible, setIsProfileModalVisible] = useState(false)
+    const [isDetailModalVisible, setIsDetailModalVisible] = useState(false)
 
     const resort = useMemo(() => {
         if (locationLatitude && locationLongitude) {
@@ -162,37 +162,36 @@ export const HistoryCard: FC<HistoryCardProps> = ({
                     )}
                 </View>
                 <Separator />
-                <View className='flex flex-row flex-wrap'>
-                    {Object.entries(HISTORY_CARD_ITEM_SETTINGS).map(([key, item], idx) => (
-                        <HistoryCardItem
-                            key={key}
-                            label={t(item.labelKey)}
-                            value={formatStatValue(rest[key as keyof typeof rest], item.unitType, measurementUnit)}
-                            className={cn(idx % 3 !== 2 && 'border-r', idx >= 3 && 'border-t')}
-                        />
-                    ))}
-                </View>
+                <Pressable onPress={() => activityId && setIsDetailModalVisible(true)}>
+                    <View className='flex flex-row flex-wrap'>
+                        {Object.entries(HISTORY_CARD_ITEM_SETTINGS).map(([key, item], idx) => {
+                            const rawValue = rest[key as keyof typeof rest]
+                            const value = key === 'type' && typeof rawValue === 'string'
+                                ? t(`user.${rawValue}`)
+                                : formatStatValue(rawValue, item.unitType, measurementUnit)
+                            return (
+                                <HistoryCardItem
+                                    key={key}
+                                    label={t(item.labelKey)}
+                                    value={value}
+                                    className={cn(idx % 3 !== 2 && 'border-r', idx >= 3 && 'border-t')}
+                                />
+                            )
+                        })}
+                    </View>
+                </Pressable>
             </View>
 
             <UserProfileModal
                 visible={isProfileModalVisible}
                 onClose={() => setIsProfileModalVisible(false)}
-                userData={
-                    isPublic
-                        ? {
-                              userId: userId ?? '',
-                              username: username ?? '',
-                              avatarURL: getImageUrl(avatarURL),
-                              bio,
-                              totalDistance: rest.totalDistance,
-                              vertical: rest.vertical,
-                              maxSpeed: rest.maxSpeed,
-                              timeOnSlope: rest.timeOnSlope,
-                              runs: rest.runs,
-                              activityTypes,
-                          }
-                        : null
-                }
+                userId={isPublic ? userId ?? null : null}
+            />
+
+            <HistoryDetailModal
+                visible={isDetailModalVisible}
+                onClose={() => setIsDetailModalVisible(false)}
+                activityId={activityId ?? null}
             />
         </>
     )

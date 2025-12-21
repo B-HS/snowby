@@ -1,11 +1,12 @@
 import type { HistoryFilter, HistoryItem } from '@/lib/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchFeed, fetchSelfHistory, fetchUserHistory, saveActivity } from './activities.api'
+import { fetchActivityDetail, fetchFeed, fetchSelfHistory, fetchUserHistory, saveActivity } from './activities.api'
 
 export const activityKeys = {
     feed: (filter: HistoryFilter) => ['activities', 'feed', filter] as const,
     selfHistory: () => ['activities', 'selfHistory'] as const,
     userHistory: (userId: string) => ['activities', 'userHistory', userId] as const,
+    detail: (activityId: string) => ['activities', 'detail', activityId] as const,
 }
 
 export const useFeed = (filter: HistoryFilter, page: number = 1, limit: number = 20) =>
@@ -37,3 +38,10 @@ export const useSaveActivity = () => {
         },
     })
 }
+
+export const useActivityDetail = (activityId: string) =>
+    useQuery({
+        queryKey: activityKeys.detail(activityId),
+        queryFn: () => fetchActivityDetail(activityId),
+        enabled: !!activityId,
+    })

@@ -1,5 +1,5 @@
 import { apiClient } from '@/entities/api-client'
-import type { FetchFeedParams, FetchFeedResponse, HistoryItem } from '@/lib/types'
+import type { ActivityDetail, FetchFeedParams, FetchFeedResponse, HistoryItem } from '@/lib/types'
 
 export const fetchFeed = (params: FetchFeedParams) => {
     const searchParams = new URLSearchParams()
@@ -19,3 +19,6 @@ export const saveActivity = (activity: Omit<HistoryItem, 'id' | 'createdAt'>) =>
         method: 'POST',
         body: activity as Record<string, unknown>,
     })
+
+export const fetchActivityDetail = (activityId: string) =>
+    apiClient<ActivityDetail>(`/api/activities/${activityId}`)

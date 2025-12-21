@@ -2,6 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Icon } from '@/components/ui/icon'
 import { Text } from '@/components/ui/text'
 import { useTranslation } from '@/lib/i18n'
+import { getImageUrl } from '@/lib/utils'
 import { findResortByCoordinate } from '@/lib/utils/resort-matcher'
 import { MapPin, Trophy } from 'lucide-react-native'
 import { FC, useMemo } from 'react'
@@ -9,7 +10,7 @@ import { View } from 'react-native'
 
 interface RankItemProps {
     username: string
-    avatarURL: string
+    avatarURL: string | null
     locationLatitude: number
     locationLongitude: number
     value: number
@@ -55,7 +56,7 @@ export const RankItem: FC<RankItemProps> = ({
                 </View>
                 <View className='flex gap-2 flex-row items-center'>
                     <Avatar alt={`${username}'s Avatar`} className='size-8'>
-                        <AvatarImage source={{ uri: avatarURL }} />
+                        <AvatarImage source={{ uri: getImageUrl(avatarURL) }} />
                         <AvatarFallback>
                             <Text>{username?.slice(0, 2)}</Text>
                         </AvatarFallback>
@@ -71,9 +72,9 @@ export const RankItem: FC<RankItemProps> = ({
                     </View>
                 </View>
             </View>
-            <View className='flex flex-row gap-2 items-center'>
-                <Text>{value}</Text>
-                <Text>{unit}</Text>
+            <View className='flex flex-row gap-1 items-center'>
+                <Text className='font-bold'>{Math.round(value)}</Text>
+                <Text className='text-primary/70'>{unit === 'runs' ? t('rank.countUnit') : unit}</Text>
             </View>
         </View>
     )

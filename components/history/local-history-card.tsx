@@ -82,7 +82,7 @@ export const LocalHistoryCard: FC<LocalHistoryCardProps> = ({ session }) => {
                     if (key === 'totalDistance') {
                         value = formatDistanceFromMeters(statsData.totalDistance, measurementUnit)
                     } else if (key === 'type') {
-                        value = 'snowboard'
+                        value = t('user.snowboard')
                     } else {
                         value = formatStatValue(
                             statsData[key as keyof typeof statsData],

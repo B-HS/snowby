@@ -1,6 +1,8 @@
 export type ActivityType = 'ski' | 'snowboard'
 
 export type UserProfile = {
+    name: string
+    image: string | null
     bio: string
     isPublic: boolean
     activityTypes: ActivityType[]
@@ -17,6 +19,7 @@ export type UserSummary = {
 export type HistoryItem = {
     id: string
     userId: string
+    sessionId: string | null
     username: string
     avatarURL: string
     locationLatitude: number
@@ -29,6 +32,41 @@ export type HistoryItem = {
     runs: number
     isPublic: boolean
     createdAt: number
+}
+
+export type TrackingLocation = {
+    id: number
+    sessionId: string
+    latitude: number
+    longitude: number
+    altitude: number
+    speed: number
+    accuracy: number
+    timestamp: string
+    activityState: 'skiing' | 'lifting' | 'resting'
+    segmentIndex: number
+    clientId: number | null
+}
+
+export type TrackingRun = {
+    id: string
+    sessionId: string
+    startTime: string
+    endTime: string
+    startAltitude: number
+    endAltitude: number
+    distance: number
+    verticalDrop: number
+    maxSpeed: number
+    avgSpeed: number
+    duration: number
+    createdAt: string
+}
+
+export type ActivityDetail = {
+    activity: HistoryItem
+    locations: TrackingLocation[]
+    runs: TrackingRun[]
 }
 
 export type Country = {

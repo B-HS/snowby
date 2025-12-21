@@ -1,7 +1,7 @@
 import { ScrollViewStyleReset } from 'expo-router/html'
 import { type PropsWithChildren } from 'react'
 
-export default function Root({ children }: PropsWithChildren) {
+const Root = ({ children }: PropsWithChildren) => {
     return (
         <html lang='en' className='bg-background'>
             <head>
@@ -14,3 +14,5 @@ export default function Root({ children }: PropsWithChildren) {
         </html>
     )
 }
+
+export default Root

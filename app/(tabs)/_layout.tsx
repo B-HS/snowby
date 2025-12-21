@@ -7,10 +7,9 @@ import { useColorScheme } from 'nativewind'
 import { Tabs } from 'expo-router'
 import { Flag, History, LogOut, ScrollText, Settings, Trophy, User2 } from 'lucide-react-native'
 import { NAV_THEME, THEME } from '@/lib/theme'
-import { Pressable } from 'react-native'
 import { Button } from '@/components/ui/button'
 
-export default function TabLayout() {
+const TabLayout = () => {
     const { colorScheme } = useColorScheme()
     const { t } = useTranslation()
     const { user, logout } = useAppStore()
@@ -100,3 +99,5 @@ export default function TabLayout() {
         </Tabs>
     )
 }
+
+export default TabLayout

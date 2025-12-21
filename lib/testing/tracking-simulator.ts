@@ -133,18 +133,42 @@ export const generateRestingScenario = (): SimulatedLocation[] => {
     return locations
 }
 
-export const generateFullDayScenario = (): SimulatedLocation[] => {
+type SimulationBounds = {
+    sw: [number, number]
+    ne: [number, number]
+}
+
+const DEFAULT_BOUNDS: SimulationBounds = {
+    sw: [127.2797, 37.3286],
+    ne: [127.2990, 37.3404],
+}
+
+export const generateFullDayScenario = (bounds: SimulationBounds = DEFAULT_BOUNDS): SimulatedLocation[] => {
     const locations: SimulatedLocation[] = []
     const startTime = Date.now()
     let currentTime = startTime
-    let currentAltitude = 1500
-    let currentLat = 36.0
-    let currentLng = 128.0
+
+    const centerLat = (bounds.sw[1] + bounds.ne[1]) / 2
+    const centerLng = (bounds.sw[0] + bounds.ne[0]) / 2
+    const latRange = bounds.ne[1] - bounds.sw[1]
+    const lngRange = bounds.ne[0] - bounds.sw[0]
+
+    let currentAltitude = 800
+    let currentLat = centerLat - latRange * 0.3
+    let currentLng = centerLng
+
+    const clampToBounds = () => {
+        currentLat = Math.max(bounds.sw[1], Math.min(bounds.ne[1], currentLat))
+        currentLng = Math.max(bounds.sw[0], Math.min(bounds.ne[0], currentLng))
+    }
 
     const addLift = (duration: number) => {
+        const latStep = (latRange * 0.12) / duration
         for (let i = 0; i < duration; i++) {
-            currentAltitude += 4
-            currentLat += 0.00002
+            currentAltitude += 3
+            currentLat += latStep
+            currentLng += (Math.random() - 0.5) * 0.0001
+            clampToBounds()
             locations.push({
                 latitude: currentLat,
                 longitude: currentLng,
@@ -159,10 +183,12 @@ export const generateFullDayScenario = (): SimulatedLocation[] => {
 
     const addSkiRun = (duration: number, avgSpeed: number, verticalDrop: number) => {
         const altDrop = verticalDrop / duration
+        const latStep = -(latRange * 0.12) / duration
         for (let i = 0; i < duration; i++) {
             currentAltitude -= altDrop
-            currentLat += 0.0001
-            currentLng += (Math.random() - 0.5) * 0.00005
+            currentLat += latStep
+            currentLng += (Math.random() - 0.5) * (lngRange * 0.02)
+            clampToBounds()
             locations.push({
                 latitude: currentLat,
                 longitude: currentLng,
@@ -190,17 +216,21 @@ export const generateFullDayScenario = (): SimulatedLocation[] => {
     }
 
     addLift(90)
-    addSkiRun(45, 12, 350)
-    addLift(100)
-    addSkiRun(60, 15, 400)
-    addResting(30)
-    addLift(80)
-    addSkiRun(50, 18, 320)
-    addLift(95)
-    addSkiRun(55, 14, 380)
+    addSkiRun(45, 12, 270)
+
+    addLift(90)
+    addSkiRun(50, 15, 270)
+
     addResting(20)
+
     addLift(85)
-    addSkiRun(40, 20, 340)
+    addSkiRun(45, 18, 255)
+
+    addLift(90)
+    addSkiRun(50, 14, 270)
+
+    addLift(85)
+    addSkiRun(40, 20, 255)
 
     return locations
 }
@@ -255,6 +285,11 @@ export const generateOfflineSyncScenario = (): SimulatedLocation[] => {
 export class TrackingSimulator {
     private activityDetector: ActivityDetector
     private locationProcessor: LocationProcessor
+    private syncManager: SyncManager
+    private sessionId: string | null = null
+    private userId: string | null = null
+    private startLat: number = 37.3345
+    private startLng: number = 127.28935
     private results: {
         states: ActivityState[]
         runs: number
@@ -265,6 +300,7 @@ export class TrackingSimulator {
     constructor() {
         this.activityDetector = new ActivityDetector()
         this.locationProcessor = new LocationProcessor()
+        this.syncManager = new SyncManager()
         this.results = {
             states: [],
             runs: 0,
@@ -273,17 +309,59 @@ export class TrackingSimulator {
         }
     }
 
-    async initialize(userId: string): Promise<string> {
+    async initialize(userId: string, startLat: number = 37.3345, startLng: number = 127.28935): Promise<string> {
         await initializeDatabase()
 
-        const startTime = Date.now()
-        const session = await queries.createSession(userId, startTime, 36.0, 128.0)
+        this.userId = userId
+        this.startLat = startLat
+        this.startLng = startLng
 
+        const startTime = Date.now()
+        const session = await queries.createSession(userId, startTime, startLat, startLng)
+
+        this.sessionId = session.id
         this.locationProcessor.reset()
         this.locationProcessor.setSessionId(session.id)
         this.locationProcessor.setupRunCompleteHandler()
 
+        this.syncManager.reset()
+        this.syncManager.setSessionId(session.id)
+
         return session.id
+    }
+
+    async completeSession(): Promise<void> {
+        if (!this.sessionId) return
+
+        const stats = this.getStats()
+        await queries.updateSessionStats(this.sessionId, stats)
+        await queries.completeSession(this.sessionId, Date.now())
+
+        const session = await queries.getSession(this.sessionId)
+        if (session) {
+            try {
+                await this.syncManager.syncCompletedSession({
+                    id: session.id,
+                    userId: session.userId,
+                    startTime: session.startTime,
+                    startLatitude: session.startLatitude,
+                    startLongitude: session.startLongitude,
+                    totalDistance: session.totalDistance,
+                    maxVertical: session.maxVertical,
+                    totalRuns: session.totalRuns,
+                    maxSpeed: session.maxSpeed,
+                    timeOnSlope: session.timeOnSlope,
+                })
+                await queries.markSessionSynced(this.sessionId)
+                console.log('[TrackingSimulator] Session synced to server:', this.sessionId)
+            } catch (error) {
+                console.log('[TrackingSimulator] Failed to sync session (will retry on login):', error)
+            }
+        }
+    }
+
+    getSessionId(): string | null {
+        return this.sessionId
     }
 
     async processLocation(loc: SimulatedLocation): Promise<{
@@ -382,6 +460,9 @@ export class TrackingSimulator {
     reset() {
         this.activityDetector.reset()
         this.locationProcessor.reset()
+        this.syncManager.reset()
+        this.sessionId = null
+        this.userId = null
         this.results = {
             states: [],
             runs: 0,

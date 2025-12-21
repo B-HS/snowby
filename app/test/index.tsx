@@ -1,10 +1,9 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef } from 'react'
 import { View, ScrollView } from 'react-native'
 import { Text } from '@/components/ui/text'
 import { Button } from '@/components/ui/button'
-import { AccuracyCircle } from '@/components/tracking/accuracy-circle'
+import { MapView, MapViewRef } from '@/components/map/map-view'
 import { useTranslation } from '@/lib/i18n'
-import { Camera, CameraRef, LineLayer, MapView, ShapeSource } from '@maplibre/maplibre-react-native'
 import { runAllTests } from '@/lib/testing/tracking-simulator'
 import { runAllSyncTests } from '@/lib/testing/sync-test'
 import {
@@ -34,22 +33,24 @@ type TestResult = {
     error?: string
 }
 
-const MAP_STYLES = {
-    openfreemap: 'https://tiles.openfreemap.org/styles/liberty',
-    fallback: 'https://demotiles.maplibre.org/style.json',
-}
-
 const ACTIVITY_STATE_COLORS: Record<ActivityState, string> = {
     skiing: '#3b82f6',
     lifting: '#22c55e',
     resting: '#f97316',
 }
 
+const DEFAULT_CAMERA = {
+    coordinates: {
+        latitude: 37.3345,
+        longitude: 127.28935,
+    },
+    zoom: 15,
+}
+
 const TestPage = () => {
     const { t } = useTranslation()
-    const { measurementUnit } = useAppStore()
-    const cameraRef = useRef<CameraRef>(null)
-    const [mapStyle, setMapStyle] = useState(MAP_STYLES.openfreemap)
+    const { measurementUnit, user } = useAppStore()
+    const mapRef = useRef<MapViewRef>(null)
     const [isRunning, setIsRunning] = useState(false)
     const [simulatorResults, setSimulatorResults] = useState<Record<string, { passed: boolean; details: string }> | null>(null)
     const [syncResults, setSyncResults] = useState<{ results: TestResult[]; summary: { passed: number; failed: number; total: number } } | null>(null)
@@ -62,12 +63,6 @@ const TestPage = () => {
     const [liveStats, setLiveStats] = useState<SessionStats | null>(null)
     const [liveActivityState, setLiveActivityState] = useState<ActivityState>('resting')
     const simulatorRef = useRef<TrackingSimulator | null>(null)
-
-    const handleMapLoadError = useCallback(() => {
-        if (mapStyle === MAP_STYLES.openfreemap) {
-            setMapStyle(MAP_STYLES.fallback)
-        }
-    }, [mapStyle])
 
     const runSimulatorTests = async () => {
         setIsRunning(true)
@@ -119,26 +114,30 @@ const TestPage = () => {
 
         if (type === 'fullday') {
             const simulator = new TrackingSimulator()
-            await simulator.initialize('test-fullday-user')
+            const userId = user?.id || 'anonymous'
+            await simulator.initialize(userId, 37.3345, 127.28935)
             simulatorRef.current = simulator
         }
 
-        if (locations.length > 0 && cameraRef.current) {
-            cameraRef.current.setCamera({
-                centerCoordinate: [locations[0].longitude, locations[0].latitude],
-                zoomLevel: 15,
-                animationDuration: 500,
+        if (locations.length > 0 && mapRef.current) {
+            mapRef.current.setCameraPosition({
+                coordinates: {
+                    latitude: locations[0].latitude,
+                    longitude: locations[0].longitude,
+                },
+                zoom: 16,
             })
         }
 
         let index = 0
         const processLocation = async () => {
             if (index >= locations.length) {
-                setIsSimulating(false)
                 if (simulatorRef.current) {
+                    await simulatorRef.current.completeSession()
                     const finalStats = simulatorRef.current.getStats()
                     setLiveStats(finalStats)
                 }
+                setIsSimulating(false)
                 return
             }
 
@@ -153,10 +152,13 @@ const TestPage = () => {
                 }
             }
 
-            if (cameraRef.current) {
-                cameraRef.current.setCamera({
-                    centerCoordinate: [loc.longitude, loc.latitude],
-                    animationDuration: playbackSpeed,
+            if (mapRef.current) {
+                mapRef.current.setCameraPosition({
+                    coordinates: {
+                        latitude: loc.latitude,
+                        longitude: loc.longitude,
+                    },
+                    zoom: 16,
                 })
             }
 
@@ -188,16 +190,9 @@ const TestPage = () => {
     }
 
     const currentLocation = simulationLocations[currentIndex]
-    const pathCoordinates = simulationLocations.slice(0, currentIndex + 1).map((loc) => [loc.longitude, loc.latitude])
-
-    const routeGeoJSON: GeoJSON.Feature<GeoJSON.LineString> = {
-        type: 'Feature',
-        properties: {},
-        geometry: {
-            type: 'LineString',
-            coordinates: pathCoordinates.length >= 2 ? pathCoordinates : [[128, 36], [128.001, 36.001]],
-        },
-    }
+    const pathCoordinates = simulationLocations
+        .slice(0, currentIndex + 1)
+        .map((loc) => ({ latitude: loc.latitude, longitude: loc.longitude }))
 
     const getActivityStateFromLocation = (loc: SimulatedLocation): ActivityState => {
         const speedKmh = loc.speed * 3.6
@@ -208,44 +203,35 @@ const TestPage = () => {
 
     const currentActivityState = currentLocation ? getActivityStateFromLocation(currentLocation) : 'resting'
 
+    const polylines = pathCoordinates.length >= 2
+        ? [{ points: pathCoordinates, color: simulationType ? ACTIVITY_STATE_COLORS[currentActivityState] : '#3b82f6', width: 4 }]
+        : []
+
+    const circles = currentLocation
+        ? [{
+              center: { latitude: currentLocation.latitude, longitude: currentLocation.longitude },
+              radius: currentLocation.accuracy,
+              fillColor: '#3b82f633',
+              strokeColor: '#3b82f6',
+              strokeWidth: 1,
+          }]
+        : []
+
+    const markers = currentLocation
+        ? [{ coordinates: { latitude: currentLocation.latitude, longitude: currentLocation.longitude }, id: 'current' }]
+        : []
+
     return (
         <View className="flex-1 bg-white dark:bg-gray-900">
             <View className="h-1/2">
                 <MapView
+                    ref={mapRef}
                     style={{ flex: 1 }}
-                    mapStyle={mapStyle}
-                    logoEnabled={false}
-                    attributionEnabled={false}
-                    onDidFailLoadingMap={handleMapLoadError}>
-                    <Camera
-                        ref={cameraRef}
-                        centerCoordinate={currentLocation ? [currentLocation.longitude, currentLocation.latitude] : [128, 36]}
-                        zoomLevel={16}
-                        animationMode='easeTo'
-                        animationDuration={300}
-                    />
-                    {pathCoordinates.length >= 2 && (
-                        <ShapeSource id='route-source' shape={routeGeoJSON}>
-                            <LineLayer
-                                id='route-layer'
-                                style={{
-                                    lineColor: simulationType ? ACTIVITY_STATE_COLORS[currentActivityState] : '#3b82f6',
-                                    lineWidth: 4,
-                                    lineCap: 'round',
-                                    lineJoin: 'round',
-                                }}
-                            />
-                        </ShapeSource>
-                    )}
-                    {currentLocation && (
-                        <AccuracyCircle
-                            latitude={currentLocation.latitude}
-                            longitude={currentLocation.longitude}
-                            accuracy={currentLocation.accuracy}
-                            gpsLevel="excellent"
-                        />
-                    )}
-                </MapView>
+                    cameraPosition={DEFAULT_CAMERA}
+                    polylines={polylines}
+                    circles={circles}
+                    markers={markers}
+                />
 
                 {isSimulating && currentLocation && (
                     <View className="absolute bottom-2 left-2 right-2 rounded-lg bg-black/70 p-3">
@@ -375,7 +361,7 @@ const TestPage = () => {
                                 <View key={name} className="mb-2 flex-row justify-between">
                                     <Text className="text-sm">{name}</Text>
                                     <Text className={result.passed ? 'text-green-500' : 'text-red-500'}>
-                                        {result.passed ? 'PASS' : 'FAIL'}
+                                        {result.passed ? t('common.pass') : t('common.fail')}
                                     </Text>
                                 </View>
                             ))}
@@ -393,7 +379,7 @@ const TestPage = () => {
                                 <View key={index} className="mb-2 flex-row justify-between">
                                     <Text className="text-sm flex-1">{result.name}</Text>
                                     <Text className={result.passed ? 'text-green-500' : 'text-red-500'}>
-                                        {result.passed ? 'PASS' : 'FAIL'}
+                                        {result.passed ? t('common.pass') : t('common.fail')}
                                     </Text>
                                 </View>
                             ))}

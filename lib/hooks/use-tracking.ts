@@ -48,8 +48,17 @@ export const useTracking = (userId: string | null) => {
     const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
     const watchSubscription = useRef<Location.LocationSubscription | null>(null)
+    const previewSubscription = useRef<Location.LocationSubscription | null>(null)
     const restingStartTime = useRef<number | null>(null)
     const restingAlertSent = useRef(false)
+    const isMounted = useRef(true)
+
+    useEffect(() => {
+        isMounted.current = true
+        return () => {
+            isMounted.current = false
+        }
+    }, [])
 
     useEffect(() => {
         const effectiveUserId = userId ?? 'anonymous'
@@ -73,6 +82,8 @@ export const useTracking = (userId: string | null) => {
 
     const processLocationUpdate = useCallback(
         async (newLocation: Location.LocationObject) => {
+            if (!isMounted.current) return
+
             const { latitude, longitude, accuracy, altitude, speed } = newLocation.coords
 
             setLocation({
@@ -99,6 +110,20 @@ export const useTracking = (userId: string | null) => {
         },
         [processLocation]
     )
+
+    const updateLocationPreview = useCallback((newLocation: Location.LocationObject) => {
+        if (!isMounted.current) return
+
+        const { latitude, longitude, accuracy, altitude, speed } = newLocation.coords
+        setLocation({
+            latitude,
+            longitude,
+            accuracy: accuracy ?? 0,
+            altitude,
+            speed,
+        })
+        setGpsLevel(getGpsLevelFromAccuracy(accuracy ?? 100))
+    }, [])
 
     useEffect(() => {
         if (activityState === 'resting') {
@@ -135,6 +160,11 @@ export const useTracking = (userId: string | null) => {
             return
         }
         console.log('[Tracking] permission granted')
+
+        if (previewSubscription.current) {
+            previewSubscription.current.remove()
+            previewSubscription.current = null
+        }
 
         let startLocation = location
         if (!startLocation) {
@@ -220,41 +250,46 @@ export const useTracking = (userId: string | null) => {
         }
 
         await stopTracking()
-    }, [stopTracking])
+
+        if (isMounted.current && permissionGranted) {
+            previewSubscription.current = await Location.watchPositionAsync(
+                {
+                    accuracy: Location.Accuracy.BestForNavigation,
+                    timeInterval: 2000,
+                    distanceInterval: 5,
+                },
+                updateLocationPreview
+            )
+        }
+    }, [stopTracking, permissionGranted, updateLocationPreview])
 
     useEffect(() => {
-        let locationSubscription: Location.LocationSubscription | null = null
+        let cancelled = false
 
         const initLocation = async () => {
             const hasPermission = await requestPermission()
-            if (!hasPermission) return
+            if (!hasPermission || cancelled) return
 
-            locationSubscription = await Location.watchPositionAsync(
-                {
-                    accuracy: Location.Accuracy.BestForNavigation,
-                    timeInterval: 1000,
-                    distanceInterval: 1,
-                },
-                (newLocation) => {
-                    const { latitude, longitude, accuracy, altitude, speed } = newLocation.coords
-                    setLocation({
-                        latitude,
-                        longitude,
-                        accuracy: accuracy ?? 0,
-                        altitude,
-                        speed,
-                    })
-                    setGpsLevel(getGpsLevelFromAccuracy(accuracy ?? 100))
-                }
-            )
+            if (trackingStatusRef.current !== 'start') {
+                previewSubscription.current = await Location.watchPositionAsync(
+                    {
+                        accuracy: Location.Accuracy.BestForNavigation,
+                        timeInterval: 2000,
+                        distanceInterval: 5,
+                    },
+                    updateLocationPreview
+                )
+            }
         }
 
         initLocation()
 
         return () => {
-            locationSubscription?.remove()
+            cancelled = true
+            previewSubscription.current?.remove()
+            previewSubscription.current = null
         }
-    }, [requestPermission])
+    }, [requestPermission, updateLocationPreview])
 
     return {
         isInitialized,

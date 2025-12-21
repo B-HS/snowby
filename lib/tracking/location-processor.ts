@@ -32,31 +32,31 @@ export class LocationProcessor {
     private locationUpdateCallback: LocationUpdateCallback | null = null
     private runCompleteCallback: RunCompleteCallback | null = null
 
-    setSessionId(sessionId: string) {
+    setSessionId = (sessionId: string) => {
         this.sessionId = sessionId
     }
 
-    setSegmentIndex(index: number) {
+    setSegmentIndex = (index: number) => {
         this.segmentIndex = index
     }
 
-    getSegmentIndex(): number {
+    getSegmentIndex = () => {
         return this.segmentIndex
     }
 
-    incrementSegmentIndex() {
+    incrementSegmentIndex = () => {
         this.segmentIndex++
     }
 
-    setLocationUpdateCallback(callback: LocationUpdateCallback) {
+    setLocationUpdateCallback = (callback: LocationUpdateCallback) => {
         this.locationUpdateCallback = callback
     }
 
-    setRunCompleteCallback(callback: RunCompleteCallback) {
+    setRunCompleteCallback = (callback: RunCompleteCallback) => {
         this.runCompleteCallback = callback
     }
 
-    reset() {
+    reset = () => {
         this.sessionId = null
         this.segmentIndex = 0
         this.lastLocation = null
@@ -71,7 +71,7 @@ export class LocationProcessor {
         activityDetector.reset()
     }
 
-    restoreState(stats: SessionStats, lastLocation: LocationPoint | null) {
+    restoreState = (stats: SessionStats, lastLocation: LocationPoint | null) => {
         this.totalDistance = stats.totalDistance
         this.maxVertical = stats.maxVertical
         this.totalRuns = stats.totalRuns
@@ -83,14 +83,14 @@ export class LocationProcessor {
         }
     }
 
-    async processLocation(
+    processLocation = async (
         latitude: number,
         longitude: number,
         altitude: number,
         speed: number,
         accuracy: number,
         timestamp: number
-    ): Promise<{ locationId: number; stats: SessionStats; activityState: ActivityState } | null> {
+    ): Promise<{ locationId: number; stats: SessionStats; activityState: ActivityState } | null> => {
         if (!this.sessionId) {
             console.log('[LocationProcessor] No sessionId, skipping')
             return null
@@ -190,7 +190,7 @@ export class LocationProcessor {
         return { locationId, stats, activityState }
     }
 
-    getStats(): SessionStats {
+    getStats = (): SessionStats => {
         let timeOnSlope = this.totalSkiingTime
         if (this.skiingStartTime !== null) {
             timeOnSlope += (Date.now() - this.skiingStartTime) / 1000
@@ -205,16 +205,16 @@ export class LocationProcessor {
         }
     }
 
-    incrementRunCount() {
+    incrementRunCount = () => {
         this.totalRuns++
     }
 
-    private calculateDistance(
+    private calculateDistance = (
         lat1: number,
         lon1: number,
         lat2: number,
         lon2: number
-    ): number {
+    ) => {
         const R = 6371000
         const dLat = ((lat2 - lat1) * Math.PI) / 180
         const dLon = ((lon2 - lon1) * Math.PI) / 180
@@ -228,7 +228,7 @@ export class LocationProcessor {
         return R * c
     }
 
-    setupRunCompleteHandler() {
+    setupRunCompleteHandler = () => {
         activityDetector.setRunCompleteCallback(async (runData: CurrentRunData) => {
             if (!this.sessionId) return
 

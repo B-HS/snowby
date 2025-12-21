@@ -68,7 +68,7 @@ export const formatStatValue = (
 
     switch (unitType) {
         case 'distance':
-            return `${convertDistance(value as number, measurementUnit)} ${getDistanceUnit(measurementUnit)}`
+            return formatDistanceFromMeters(value as number, measurementUnit)
         case 'vertical':
             return `${convertVertical(value as number, measurementUnit)} ${getVerticalUnit(measurementUnit)}`
         case 'speed':

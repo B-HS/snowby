@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { Icon } from '@/components/ui/icon'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Text } from '@/components/ui/text'
@@ -10,6 +11,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { X } from 'lucide-react-native'
 import { FC, useState } from 'react'
 import { ActivityIndicator, Modal, Pressable, View } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 interface ProfileEditModalProps {
     visible: boolean
@@ -62,13 +64,13 @@ export const ProfileEditModal: FC<ProfileEditModalProps> = ({ visible, onClose, 
     }
 
     return (
-        <Modal visible={visible} animationType='slide' transparent statusBarTranslucent>
+        <Modal visible={visible} animationType='slide' transparent>
             <View className='flex-1 bg-black/50 justify-end'>
-                <View className='bg-background rounded-t-xl'>
+                <SafeAreaView edges={['bottom']} className='bg-background rounded-t-xl'>
                     <View className='flex flex-row items-center justify-between p-4'>
                         <Text className='text-lg font-bold'>{t('user.editProfile')}</Text>
-                        <Pressable onPress={onClose}>
-                            <X size={24} className='text-primary' />
+                        <Pressable onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                            <Icon as={X} size={24} className='text-primary' />
                         </Pressable>
                     </View>
                     <Separator />
@@ -125,7 +127,7 @@ export const ProfileEditModal: FC<ProfileEditModalProps> = ({ visible, onClose, 
                             </Button>
                         </View>
                     </View>
-                </View>
+                </SafeAreaView>
             </View>
         </Modal>
     )

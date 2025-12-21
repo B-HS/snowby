@@ -202,11 +202,12 @@ export const useTrackingStore = create<TrackingStore>((set, get) => ({
             await queries.updateSessionStats(sessionId, stats)
 
             set((state) => {
-                const segments = [...state.trackingData.segments]
-                const lastSegmentIndex = segments.length - 1
-                if (lastSegmentIndex >= 0) {
-                    segments[lastSegmentIndex] = [...segments[lastSegmentIndex], [longitude, latitude]]
-                }
+                const lastSegmentIndex = state.trackingData.segments.length - 1
+                const segments = state.trackingData.segments.map((segment, index) =>
+                    index === lastSegmentIndex
+                        ? [...segment, [longitude, latitude] as [number, number]]
+                        : segment
+                )
                 return {
                     trackingData: {
                         ...state.trackingData,

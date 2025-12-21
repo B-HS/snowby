@@ -69,7 +69,7 @@ const buttonTextVariants = cva(cn('text-sm font-medium text-foreground', Platfor
 
 type ButtonProps = React.ComponentProps<typeof Pressable> & VariantProps<typeof buttonVariants>
 
-function Button({ className, variant, size, ...props }: ButtonProps) {
+const Button = ({ className, variant, size, ...props }: ButtonProps) => {
     return (
         <TextClassContext.Provider value={buttonTextVariants({ variant, size })}>
             <Pressable className={cn(props.disabled && 'opacity-50', buttonVariants({ variant, size }), className)} role='button' {...props} />

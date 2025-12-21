@@ -1,18 +1,17 @@
-import { AccuracyCircle } from '@/components/tracking/accuracy-circle'
 import { RecoveryModal } from '@/components/tracking/recovery-modal'
 import { TrackingControls } from '@/components/tracking/tracking-controls'
 import { TrackingStats } from '@/components/tracking/tracking-stats'
-import { Text } from '@/components/ui/text'
+import { MapView, MapViewRef } from '@/components/map/map-view'
 import { userKeys } from '@/entities/users/users.query'
 import { useCrashRecovery } from '@/lib/hooks/use-crash-recovery'
 import { useTracking } from '@/lib/hooks/use-tracking'
 import { useTranslation } from '@/lib/i18n'
 import { useAppStore } from '@/lib/store'
-import { findResortByCoordinate } from '@/lib/utils/resort-matcher'
-import { Camera, CameraRef, LineLayer, MapView, ShapeSource } from '@maplibre/maplibre-react-native'
+import { GPS_SIGNAL_LEVELS } from '@/lib/constant'
+import { getCameraPositionForResort } from '@/lib/utils/resort-matcher'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'expo-router'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { View } from 'react-native'
 
 const SAMPLE_SEGMENTS: [number, number][][] = [
@@ -26,14 +25,17 @@ const SAMPLE_SEGMENTS: [number, number][][] = [
     ],
 ]
 
-const MAP_STYLES = {
-    openfreemap: 'https://tiles.openfreemap.org/styles/liberty',
-    fallback: 'https://demotiles.maplibre.org/style.json',
+const DEFAULT_CAMERA = {
+    coordinates: {
+        latitude: 37.4979,
+        longitude: 127.0276,
+    },
+    zoom: 14,
 }
 
 const Home = () => {
     const { t } = useTranslation()
-    const cameraRef = useRef<CameraRef>(null)
+    const mapRef = useRef<MapViewRef>(null)
     const queryClient = useQueryClient()
     const { user } = useAppStore()
     const userId = user?.id ?? null
@@ -43,15 +45,13 @@ const Home = () => {
 
     const { showRecoveryModal, unfinishedSession, handleRecovery, dismissRecovery } = useCrashRecovery(userId)
 
-    const currentResort = useMemo(() => {
-        if (location) {
-            return findResortByCoordinate(location.latitude, location.longitude)
+    useEffect(() => {
+        if (location && mapRef.current) {
+            mapRef.current.setCameraPosition(
+                getCameraPositionForResort(location.latitude, location.longitude)
+            )
         }
-        return null
     }, [location])
-
-    const [scale] = useState(14)
-    const [mapStyle, setMapStyle] = useState(MAP_STYLES.openfreemap)
 
     const invalidateTrackingData = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: ['activities'] })
@@ -66,91 +66,56 @@ const Home = () => {
         invalidateTrackingData()
     }, [handleStop, invalidateTrackingData])
 
-    const handleMapLoadError = useCallback(() => {
-        if (mapStyle === MAP_STYLES.openfreemap) {
-            setMapStyle(MAP_STYLES.fallback)
-        }
-    }, [mapStyle])
-
     const segments = trackingData.segments.length > 0 ? trackingData.segments : SAMPLE_SEGMENTS
     const validSegments = segments.filter((seg) => seg.length >= 2)
 
-    const routeGeoJSON: GeoJSON.Feature<GeoJSON.MultiLineString> = {
-        type: 'Feature',
-        properties: {},
-        geometry: {
-            type: 'MultiLineString',
-            coordinates:
-                validSegments.length > 0
-                    ? validSegments
-                    : [
-                          [
-                              [127.0276, 37.4979],
-                              [127.028, 37.4985],
-                          ],
-                      ],
-        },
-    }
+    const polylinePoints = validSegments.flatMap((segment) =>
+        segment.map(([lng, lat]) => ({ latitude: lat, longitude: lng }))
+    )
 
-    const lastSegment = segments[segments.length - 1]
-    const lastPoint = lastSegment?.[lastSegment.length - 1]
+    const cameraPosition = location
+        ? getCameraPositionForResort(location.latitude, location.longitude)
+        : DEFAULT_CAMERA
 
-    const centerCoordinate = location ? [location.longitude, location.latitude] : lastPoint ? lastPoint : [127.0276, 37.4979]
+    const polylines = polylinePoints.length >= 2
+        ? [{ points: polylinePoints, color: 'rgba(59, 130, 246, 0.8)', width: 4 }]
+        : []
+
+    const gpsColor = GPS_SIGNAL_LEVELS[gpsLevel].color
+    const circles = location
+        ? [{
+              center: { latitude: location.latitude, longitude: location.longitude },
+              radius: location.accuracy,
+              fillColor: `${gpsColor}33`,
+              strokeColor: gpsColor,
+              strokeWidth: 1,
+          }]
+        : []
+
+    const markers = location
+        ? [{ coordinates: { latitude: location.latitude, longitude: location.longitude }, id: 'current-location' }]
+        : []
 
     return (
         <View className='flex-1 pt-2'>
-            <TrackingStats gpsLevel={gpsLevel} trackingStatus={trackingStatus} trackingData={trackingData} activityState={activityState} />
+            <TrackingStats gpsLevel={gpsLevel} trackingStatus={trackingStatus} trackingData={trackingData} activityState={activityState} currentLocation={location} />
 
             <View className='h-1/2'>
                 {__DEV__ && (
-                    <View className='flex-row justify-between px-4 py-1'>
-                        <Text className='text-xs text-gray-500'>
-                            {location ? `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}` : '--'}
-                        </Text>
-                        <Text className='text-xs text-gray-500'>{location ? `${((location.speed ?? 0) * 3.6).toFixed(1)}km/h` : '--'}</Text>
-                        <Text className='text-xs text-blue-500'>
-                            {currentResort?.id !== 'unknown' ? currentResort?.name : '--'}
-                        </Text>
+                    <View className='flex-row justify-end items-center px-4 py-2'>
                         <Link href='/test' className='text-xs text-blue-500'>
                             {t('test.title')}
                         </Link>
                     </View>
                 )}
                 <MapView
+                    ref={mapRef}
                     style={{ flex: 1 }}
-                    mapStyle={mapStyle}
-                    logoEnabled={false}
-                    attributionEnabled={false}
-                    onDidFailLoadingMap={handleMapLoadError}>
-                    <Camera
-                        ref={cameraRef}
-                        centerCoordinate={centerCoordinate as [number, number]}
-                        zoomLevel={scale}
-                        animationMode='easeTo'
-                        animationDuration={500}
-                    />
-                    {validSegments.length > 0 && (
-                        <ShapeSource id='route-source' shape={routeGeoJSON} lineMetrics>
-                            <LineLayer
-                                id='route-layer'
-                                style={{
-                                    lineColor: 'rgba(59, 130, 246, 0.8)',
-                                    lineWidth: 4,
-                                    lineCap: 'round',
-                                    lineJoin: 'round',
-                                }}
-                            />
-                        </ShapeSource>
-                    )}
-                    {location && (
-                        <AccuracyCircle
-                            latitude={location.latitude}
-                            longitude={location.longitude}
-                            accuracy={location.accuracy}
-                            gpsLevel={gpsLevel}
-                        />
-                    )}
-                </MapView>
+                    cameraPosition={cameraPosition}
+                    polylines={polylines}
+                    circles={circles}
+                    markers={markers}
+                />
             </View>
 
             <TrackingControls

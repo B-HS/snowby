@@ -29,7 +29,7 @@ const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 
 const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 
-function DropdownMenuSubTrigger({
+const DropdownMenuSubTrigger = ({
   className,
   inset,
   children,
@@ -40,7 +40,7 @@ function DropdownMenuSubTrigger({
     children?: React.ReactNode;
     iconClassName?: string;
     inset?: boolean;
-  }) {
+  }) => {
   const { open } = DropdownMenuPrimitive.useSubContext();
   const icon = Platform.OS === 'web' ? ChevronRight : open ? ChevronUp : ChevronDown;
   return (
@@ -66,11 +66,11 @@ function DropdownMenuSubTrigger({
   );
 }
 
-function DropdownMenuSubContent({
+const DropdownMenuSubContent = ({
   className,
   ...props
 }: DropdownMenuPrimitive.SubContentProps &
-  React.RefAttributes<DropdownMenuPrimitive.SubContentRef>) {
+  React.RefAttributes<DropdownMenuPrimitive.SubContentRef>) => {
   return (
     <NativeOnlyAnimatedView entering={FadeIn}>
       <DropdownMenuPrimitive.SubContent
@@ -89,7 +89,7 @@ function DropdownMenuSubContent({
 
 const FullWindowOverlay = Platform.OS === 'ios' ? RNFullWindowOverlay : React.Fragment;
 
-function DropdownMenuContent({
+const DropdownMenuContent = ({
   className,
   overlayClassName,
   overlayStyle,
@@ -100,7 +100,7 @@ function DropdownMenuContent({
     overlayStyle?: StyleProp<ViewStyle>;
     overlayClassName?: string;
     portalHost?: string;
-  }) {
+  }) => {
   return (
     <DropdownMenuPrimitive.Portal hostName={portalHost}>
       <FullWindowOverlay>
@@ -139,7 +139,7 @@ function DropdownMenuContent({
   );
 }
 
-function DropdownMenuItem({
+const DropdownMenuItem = ({
   className,
   inset,
   variant,
@@ -149,7 +149,7 @@ function DropdownMenuItem({
     className?: string;
     inset?: boolean;
     variant?: 'default' | 'destructive';
-  }) {
+  }) => {
   return (
     <TextClassContext.Provider
       value={cn(
@@ -176,14 +176,14 @@ function DropdownMenuItem({
   );
 }
 
-function DropdownMenuCheckboxItem({
+const DropdownMenuCheckboxItem = ({
   className,
   children,
   ...props
 }: DropdownMenuPrimitive.CheckboxItemProps &
   React.RefAttributes<DropdownMenuPrimitive.CheckboxItemRef> & {
     children?: React.ReactNode;
-  }) {
+  }) => {
   return (
     <TextClassContext.Provider value="text-sm text-popover-foreground select-none group-active:text-accent-foreground">
       <DropdownMenuPrimitive.CheckboxItem
@@ -213,14 +213,14 @@ function DropdownMenuCheckboxItem({
   );
 }
 
-function DropdownMenuRadioItem({
+const DropdownMenuRadioItem = ({
   className,
   children,
   ...props
 }: DropdownMenuPrimitive.RadioItemProps &
   React.RefAttributes<DropdownMenuPrimitive.RadioItemRef> & {
     children?: React.ReactNode;
-  }) {
+  }) => {
   return (
     <TextClassContext.Provider value="text-sm text-popover-foreground select-none group-active:text-accent-foreground">
       <DropdownMenuPrimitive.RadioItem
@@ -244,7 +244,7 @@ function DropdownMenuRadioItem({
   );
 }
 
-function DropdownMenuLabel({
+const DropdownMenuLabel = ({
   className,
   inset,
   ...props
@@ -252,7 +252,7 @@ function DropdownMenuLabel({
   React.RefAttributes<DropdownMenuPrimitive.LabelRef> & {
     className?: string;
     inset?: boolean;
-  }) {
+  }) => {
   return (
     <DropdownMenuPrimitive.Label
       className={cn(
@@ -265,10 +265,10 @@ function DropdownMenuLabel({
   );
 }
 
-function DropdownMenuSeparator({
+const DropdownMenuSeparator = ({
   className,
   ...props
-}: DropdownMenuPrimitive.SeparatorProps & React.RefAttributes<DropdownMenuPrimitive.SeparatorRef>) {
+}: DropdownMenuPrimitive.SeparatorProps & React.RefAttributes<DropdownMenuPrimitive.SeparatorRef>) => {
   return (
     <DropdownMenuPrimitive.Separator
       className={cn('bg-border -mx-1 my-1 h-px', className)}
@@ -277,7 +277,7 @@ function DropdownMenuSeparator({
   );
 }
 
-function DropdownMenuShortcut({ className, ...props }: TextProps & React.RefAttributes<Text>) {
+const DropdownMenuShortcut = ({ className, ...props }: TextProps & React.RefAttributes<Text>) => {
   return (
     <Text
       className={cn('text-muted-foreground ml-auto text-xs tracking-widest', className)}

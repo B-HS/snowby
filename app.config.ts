@@ -42,7 +42,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     plugins: [
         'expo-router',
         'expo-localization',
-        '@maplibre/maplibre-react-native',
+        [
+            'expo-maps',
+            {
+                googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+            },
+        ],
         [
             'expo-location',
             {

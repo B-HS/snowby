@@ -21,7 +21,7 @@ export const apiClient = async <T>(endpoint: string, options: RequestOptions = {
             Cookie: cookie,
             ...headers,
         },
-        credentials: 'omit',
+        credentials: 'include',
     }
 
     if (body) {

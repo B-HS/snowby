@@ -1,12 +1,12 @@
 import '@/global.css'
 
 import { fetchResorts } from '@/entities/resorts/resorts.api'
+import { useTranslation } from '@/lib/i18n'
 import { queryClient } from '@/lib/query-client'
 import { useSession } from '@/lib/services/auth'
 import { useAppStore } from '@/lib/store'
 import { useTrackingStore } from '@/lib/tracking/tracking.store'
 import { NAV_THEME } from '@/lib/theme'
-import { Logger } from '@maplibre/maplibre-react-native'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from '@react-navigation/native'
 import { PortalHost } from '@rn-primitives/portal'
@@ -16,16 +16,10 @@ import { StatusBar } from 'expo-status-bar'
 import { useColorScheme } from 'nativewind'
 import { useCallback, useEffect, useRef } from 'react'
 
-Logger.setLogCallback((log) => {
-    if (log.message.includes('Failed to load tile') || log.message.includes('timed out')) {
-        return true
-    }
-    return !__DEV__
-})
-
 SplashScreen.preventAutoHideAsync()
 
-export default function RootLayout() {
+const RootLayout = () => {
+    const { t } = useTranslation()
     const { colorScheme } = useColorScheme()
     const hasHydrated = useAppStore((state) => state._hasHydrated)
     const setUser = useAppStore((state) => state.setUser)
@@ -88,12 +82,14 @@ export default function RootLayout() {
                 <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
                 <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen name='(tabs)' />
-                    <Stack.Screen name='alarm/index' options={{ headerShown: true, title: 'Alarm' }} />
+                    <Stack.Screen name='alarm/index' options={{ headerShown: true, title: t('alarm.title') }} />
                 </Stack>
                 <PortalHost />
             </ThemeProvider>
         </QueryClientProvider>
     )
 }
+
+export default RootLayout
 
 export { ErrorBoundary } from 'expo-router'

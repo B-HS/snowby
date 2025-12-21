@@ -37,14 +37,14 @@ const toggleVariants = cva(
   }
 );
 
-function Toggle({
+const Toggle = ({
   className,
   variant,
   size,
   ...props
 }: TogglePrimitive.RootProps &
   VariantProps<typeof toggleVariants> &
-  React.RefAttributes<TogglePrimitive.RootRef>) {
+  React.RefAttributes<TogglePrimitive.RootRef>) => {
   return (
     <TextClassContext.Provider
       value={cn(
@@ -67,7 +67,7 @@ function Toggle({
   );
 }
 
-function ToggleIcon({ className, ...props }: React.ComponentProps<typeof Icon>) {
+const ToggleIcon = ({ className, ...props }: React.ComponentProps<typeof Icon>) => {
   const textClass = React.useContext(TextClassContext);
   return <Icon className={cn('size-4 shrink-0', textClass, className)} {...props} />;
 }

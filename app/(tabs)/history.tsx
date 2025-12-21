@@ -1,4 +1,7 @@
+import { HiddenUsersModal } from '@/components/history/hidden-users-modal'
 import { HistoryCard } from '@/components/history/history-card'
+import { Button } from '@/components/ui/button'
+import { Icon } from '@/components/ui/icon'
 import { Text } from '@/components/ui/text'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useFeed } from '@/entities/activities/activities.query'
@@ -6,20 +9,18 @@ import { useFollowUser, useHideUser, useReportUser, useUnfollowUser } from '@/en
 import { useTranslation } from '@/lib/i18n'
 import { useAppStore } from '@/lib/store'
 import type { HistoryFilter } from '@/lib/types'
-import { useState } from 'react'
+import { useNavigation } from 'expo-router'
+import { EyeOff } from 'lucide-react-native'
+import { useLayoutEffect, useState } from 'react'
 import { ActivityIndicator, ScrollView, View } from 'react-native'
 
 const History = () => {
     const { t } = useTranslation()
+    const navigation = useNavigation()
     const [filter, setFilter] = useState<HistoryFilter>('all')
+    const [isHiddenUsersModalVisible, setIsHiddenUsersModalVisible] = useState(false)
 
-    const {
-        followUser: followUserStore,
-        unfollowUser: unfollowUserStore,
-        hideUser: hideUserStore,
-        isFollowing,
-        isHidden,
-    } = useAppStore()
+    const { followUser: followUserStore, unfollowUser: unfollowUserStore, hideUser: hideUserStore, isFollowing, isHidden } = useAppStore()
 
     const { data: feedData, isLoading } = useFeed(filter)
     const { mutate: followUser } = useFollowUser()
@@ -27,8 +28,19 @@ const History = () => {
     const { mutate: hideUser } = useHideUser()
     const { mutate: reportUser } = useReportUser()
 
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            headerRight: () => (
+                <Button variant='ghost' size='icon' onPress={() => setIsHiddenUsersModalVisible(true)}>
+                    <Icon as={EyeOff} size={18} className='text-primary' />
+                </Button>
+            ),
+        })
+    }, [navigation])
+
     const filteredItems =
         feedData?.items.filter((item) => {
+            if (!item.isPublic) return false
             if (isHidden(item.userId)) return false
             if (filter === 'friend') return isFollowing(item.userId)
             return true
@@ -63,6 +75,7 @@ const History = () => {
                 {filteredItems.map((item) => (
                     <HistoryCard
                         key={item.id}
+                        activityId={item.id}
                         userId={item.userId}
                         username={item.username}
                         avatarURL={item.avatarURL}
@@ -88,6 +101,8 @@ const History = () => {
                     </View>
                 )}
             </ScrollView>
+
+            <HiddenUsersModal visible={isHiddenUsersModalVisible} onClose={() => setIsHiddenUsersModalVisible(false)} />
         </>
     )
 }

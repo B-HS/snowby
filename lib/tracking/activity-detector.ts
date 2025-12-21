@@ -17,23 +17,23 @@ export class ActivityDetector {
     private currentRun: CurrentRunData | null = null
     private lastAltitude: number | null = null
 
-    setStateChangeCallback(callback: StateChangeCallback) {
+    setStateChangeCallback = (callback: StateChangeCallback) => {
         this.stateChangeCallback = callback
     }
 
-    setRunCompleteCallback(callback: RunCompleteCallback) {
+    setRunCompleteCallback = (callback: RunCompleteCallback) => {
         this.runCompleteCallback = callback
     }
 
-    getCurrentState(): ActivityState {
+    getCurrentState = () => {
         return this.currentState
     }
 
-    getCurrentRun(): CurrentRunData | null {
+    getCurrentRun = () => {
         return this.currentRun
     }
 
-    reset() {
+    reset = () => {
         this.currentState = 'resting'
         this.pendingState = null
         this.pendingStateStartTime = 0
@@ -43,7 +43,7 @@ export class ActivityDetector {
         this.lastAltitude = null
     }
 
-    processLocation(location: LocationPoint): ActivityState {
+    processLocation = (location: LocationPoint) => {
         const { altitude, speed, timestamp } = location
         const speedKmh = speed * 3.6
 
@@ -81,7 +81,7 @@ export class ActivityDetector {
         return this.currentState
     }
 
-    private updateSmoothingBuffers(altitude: number, speedKmh: number) {
+    private updateSmoothingBuffers = (altitude: number, speedKmh: number) => {
         this.recentAltitudes.push(altitude)
         if (this.recentAltitudes.length > NOISE_FILTER_CONFIG.altitudeSmoothingWindow) {
             this.recentAltitudes.shift()
@@ -93,17 +93,17 @@ export class ActivityDetector {
         }
     }
 
-    private getSmoothedSpeed(): number {
+    private getSmoothedSpeed = () => {
         if (this.recentSpeeds.length === 0) return 0
         return this.recentSpeeds.reduce((a, b) => a + b, 0) / this.recentSpeeds.length
     }
 
-    private getAltitudeChange(): number {
+    private getAltitudeChange = () => {
         if (this.recentAltitudes.length < 2) return 0
         return this.recentAltitudes[this.recentAltitudes.length - 1] - this.recentAltitudes[0]
     }
 
-    private detectState(speed: number, altitudeChange: number): ActivityState {
+    private detectState = (speed: number, altitudeChange: number): ActivityState => {
         console.log(`[ActivityDetector] speed: ${speed.toFixed(1)}km/h, altChange: ${altitudeChange.toFixed(1)}m`)
 
         if (
@@ -136,7 +136,7 @@ export class ActivityDetector {
         return this.currentState
     }
 
-    private transitionState(newState: ActivityState, location: LocationPoint) {
+    private transitionState = (newState: ActivityState, location: LocationPoint) => {
         const prevState = this.currentState
 
         if (prevState === 'skiing' && (newState === 'lifting' || newState === 'resting')) {
@@ -156,7 +156,7 @@ export class ActivityDetector {
         }
     }
 
-    private startRun(location: LocationPoint) {
+    private startRun = (location: LocationPoint) => {
         this.currentRun = {
             startTime: location.timestamp,
             startAltitude: location.altitude,
@@ -169,7 +169,7 @@ export class ActivityDetector {
         }
     }
 
-    private updateCurrentRun(location: LocationPoint) {
+    private updateCurrentRun = (location: LocationPoint) => {
         if (!this.currentRun) return
 
         const speedKmh = location.speed * 3.6
@@ -178,13 +178,13 @@ export class ActivityDetector {
         this.currentRun.speedCount++
     }
 
-    addDistanceToCurrentRun(distance: number) {
+    addDistanceToCurrentRun = (distance: number) => {
         if (this.currentRun) {
             this.currentRun.distance += distance
         }
     }
 
-    private completeRun(location: LocationPoint) {
+    private completeRun = (location: LocationPoint) => {
         if (!this.currentRun) return
 
         const duration = (location.timestamp - this.currentRun.startTime) / 1000

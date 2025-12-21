@@ -9,13 +9,13 @@ import { Platform } from 'react-native'
 
 const ToggleGroupContext = React.createContext<VariantProps<typeof toggleVariants> | null>(null)
 
-function ToggleGroup({
+const ToggleGroup = ({
     className,
     variant,
     size,
     children,
     ...props
-}: ToggleGroupPrimitive.RootProps & VariantProps<typeof toggleVariants> & React.RefAttributes<ToggleGroupPrimitive.RootRef>) {
+}: ToggleGroupPrimitive.RootProps & VariantProps<typeof toggleVariants> & React.RefAttributes<ToggleGroupPrimitive.RootRef>) => {
     return (
         <ToggleGroupPrimitive.Root
             className={cn(
@@ -30,7 +30,7 @@ function ToggleGroup({
     )
 }
 
-function useToggleGroupContext() {
+const useToggleGroupContext = () => {
     const context = React.useContext(ToggleGroupContext)
     if (context === null) {
         throw new Error('ToggleGroup compound components cannot be rendered outside the ToggleGroup component')
@@ -38,7 +38,7 @@ function useToggleGroupContext() {
     return context
 }
 
-function ToggleGroupItem({
+const ToggleGroupItem = ({
     className,
     children,
     variant,
@@ -51,7 +51,7 @@ function ToggleGroupItem({
     React.RefAttributes<ToggleGroupPrimitive.ItemRef> & {
         isFirst?: boolean
         isLast?: boolean
-    }) {
+    }) => {
     const context = useToggleGroupContext()
     const { value } = ToggleGroupPrimitive.useRootContext()
 
@@ -88,7 +88,7 @@ function ToggleGroupItem({
     )
 }
 
-function ToggleGroupIcon({ className, ...props }: React.ComponentProps<typeof Icon>) {
+const ToggleGroupIcon = ({ className, ...props }: React.ComponentProps<typeof Icon>) => {
     const textClass = React.useContext(TextClassContext)
     return <Icon className={cn('size-4 shrink-0', textClass, className)} {...props} />
 }
