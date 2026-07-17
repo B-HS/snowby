@@ -5,7 +5,7 @@ import { useAppStore } from '@/lib/store'
 import { formatStatValue, formatDistanceFromMeters } from '@/lib/units'
 import type { TrackingData, TrackingStatus, ActivityState, GPSSignalLevel } from '@/lib/tracking/tracking.types'
 import { findResortByCoordinate } from '@/lib/utils/resort-matcher'
-import { FC, useEffect, useState } from 'react'
+import { FC, useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
 import { GpsSignal } from './gps-signal'
 import { TrackingStatItem } from './tracking-stat-item'
@@ -32,6 +32,9 @@ const ACTIVITY_STATE_KEYS: Record<ActivityState, string> = {
 }
 
 export const TrackingStats: FC<TrackingStatsProps> = ({ gpsLevel, trackingStatus, trackingData, activityState, currentLocation }) => {
+    const accumulatedSecondsRef = useRef(0)
+    const activeStartRef = useRef<number | null>(null)
+
     const { t } = useTranslation()
     const { measurementUnit } = useAppStore()
     const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -39,23 +42,30 @@ export const TrackingStats: FC<TrackingStatsProps> = ({ gpsLevel, trackingStatus
     useEffect(() => {
         let interval: ReturnType<typeof setInterval> | null = null
 
-        if (trackingStatus === 'start' && trackingData.startTime) {
+        if (trackingStatus === 'start') {
+            if (activeStartRef.current === null) activeStartRef.current = Date.now()
             const updateElapsed = () => {
-                const now = Date.now()
-                const elapsed = Math.floor((now - trackingData.startTime!) / 1000)
-                setElapsedSeconds(elapsed)
+                const activeSeconds = activeStartRef.current ? (Date.now() - activeStartRef.current) / 1000 : 0
+                setElapsedSeconds(Math.floor(accumulatedSecondsRef.current + activeSeconds))
             }
 
             updateElapsed()
             interval = setInterval(updateElapsed, 1000)
+        } else if (trackingStatus === 'pause') {
+            if (activeStartRef.current !== null) {
+                accumulatedSecondsRef.current += (Date.now() - activeStartRef.current) / 1000
+                activeStartRef.current = null
+            }
         } else if (trackingStatus === 'stop') {
+            accumulatedSecondsRef.current = 0
+            activeStartRef.current = null
             setElapsedSeconds(0)
         }
 
         return () => {
             if (interval) clearInterval(interval)
         }
-    }, [trackingStatus, trackingData.startTime])
+    }, [trackingStatus])
 
     const resortLatitude = currentLocation?.latitude ?? (trackingData.currentLatitude || trackingData.startLatitude)
     const resortLongitude = currentLocation?.longitude ?? (trackingData.currentLongitude || trackingData.startLongitude)

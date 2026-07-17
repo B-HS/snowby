@@ -127,6 +127,11 @@ export type SyncDataPayload = {
     locations: SyncLocationInput[]
     runs: SyncRunInput[]
     sessionStats: SessionStats
+    sessionStart: {
+        startTime: number
+        startLatitude: number
+        startLongitude: number
+    }
     lastSyncedClientId: number
 }
 

@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as Location from 'expo-location'
 import * as Notifications from 'expo-notifications'
 import { t } from '@/lib/i18n'
 import { useTrackingStore } from '@/lib/tracking/tracking.store'
 import { GPS_SIGNAL_CONFIG, RESTING_ALERT_THRESHOLD } from '@/lib/tracking/tracking.config'
-import {
-    startBackgroundLocationTracking,
-    stopBackgroundLocationTracking,
-    setLocationCallback,
-} from '@/lib/services/background-location'
+import { startBackgroundLocationTracking, stopBackgroundLocationTracking, setLocationCallback } from '@/lib/services/background-location'
 import type { GPSSignalLevel } from '@/lib/tracking/tracking.types'
+
+const PREVIEW_TIME_INTERVAL_MS = 2000
+const PREVIEW_DISTANCE_INTERVAL_M = 5
+const WORST_ACCURACY_METERS = 100
 
 export const getGpsLevelFromAccuracy = (accuracy: number): GPSSignalLevel => {
     if (accuracy < GPS_SIGNAL_CONFIG.excellent.maxAccuracy) return 'excellent'
@@ -28,9 +28,24 @@ type LocationState = {
 }
 
 export const useTracking = (userId: string | null) => {
+    const watchSubscription = useRef<Location.LocationSubscription | null>(null)
+    const previewSubscription = useRef<Location.LocationSubscription | null>(null)
+    const restingStartTime = useRef<number | null>(null)
+    const restingAlertSent = useRef(false)
+    const isMounted = useRef(true)
+    const trackingStatusRef = useRef<ReturnType<typeof useTrackingStore.getState>['trackingStatus']>('stop')
+    const prevUserIdRef = useRef(userId)
+
+    const [location, setLocation] = useState<LocationState | null>(null)
+    const [gpsLevel, setGpsLevel] = useState<GPSSignalLevel>('none')
+    const [permissionGranted, setPermissionGranted] = useState(false)
+    const [isBackgroundActive, setIsBackgroundActive] = useState(false)
+    const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
     const {
         isInitialized,
         initialize,
+        refreshUnfinishedSession,
         trackingStatus,
         trackingData,
         activityState,
@@ -41,17 +56,123 @@ export const useTracking = (userId: string | null) => {
         processLocation,
     } = useTrackingStore()
 
-    const [location, setLocation] = useState<LocationState | null>(null)
-    const [gpsLevel, setGpsLevel] = useState<GPSSignalLevel>('none')
-    const [permissionGranted, setPermissionGranted] = useState(false)
-    const [isBackgroundActive, setIsBackgroundActive] = useState(false)
-    const [errorMsg, setErrorMsg] = useState<string | null>(null)
+    trackingStatusRef.current = trackingStatus
 
-    const watchSubscription = useRef<Location.LocationSubscription | null>(null)
-    const previewSubscription = useRef<Location.LocationSubscription | null>(null)
-    const restingStartTime = useRef<number | null>(null)
-    const restingAlertSent = useRef(false)
-    const isMounted = useRef(true)
+    const requestPermission = async () => {
+        const { status } = await Location.requestForegroundPermissionsAsync()
+        if (status !== 'granted') {
+            setErrorMsg('Location permission denied')
+            return false
+        }
+        setPermissionGranted(true)
+        return true
+    }
+
+    const applyLocationToState = (coords: Location.LocationObjectCoords) => {
+        if (!isMounted.current) return
+        setLocation({
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            accuracy: coords.accuracy ?? 0,
+            altitude: coords.altitude,
+            speed: coords.speed,
+        })
+        setGpsLevel(getGpsLevelFromAccuracy(coords.accuracy ?? WORST_ACCURACY_METERS))
+    }
+
+    const processLocationUpdate = async (newLocation: Location.LocationObject) => {
+        applyLocationToState(newLocation.coords)
+        if (trackingStatusRef.current !== 'start') return
+
+        const { latitude, longitude, accuracy, altitude, speed } = newLocation.coords
+        await processLocation(latitude, longitude, altitude, speed ?? 0, accuracy ?? Infinity, newLocation.timestamp)
+    }
+
+    const processLocationBatch = async (locations: Location.LocationObject[]) => {
+        for (const loc of locations) {
+            await processLocationUpdate(loc)
+        }
+    }
+
+    const updateLocationPreview = (newLocation: Location.LocationObject) => {
+        applyLocationToState(newLocation.coords)
+    }
+
+    const startGpsPipeline = async () => {
+        try {
+            if (previewSubscription.current) {
+                previewSubscription.current.remove()
+                previewSubscription.current = null
+            }
+            setLocationCallback((locations) => {
+                processLocationBatch(locations)
+            })
+            await startBackgroundLocationTracking()
+            setIsBackgroundActive(true)
+        } catch (error) {
+            setIsBackgroundActive(false)
+        }
+    }
+
+    const handleStart = async () => {
+        const effectiveUserId = userId ?? 'anonymous'
+
+        const hasPermission = permissionGranted || (await requestPermission())
+        if (!hasPermission) return
+
+        let startLocation = location
+        if (!startLocation) {
+            try {
+                const currentPosition = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.BestForNavigation })
+                startLocation = {
+                    latitude: currentPosition.coords.latitude,
+                    longitude: currentPosition.coords.longitude,
+                    accuracy: currentPosition.coords.accuracy ?? 0,
+                    altitude: currentPosition.coords.altitude,
+                    speed: currentPosition.coords.speed,
+                }
+                applyLocationToState(currentPosition.coords)
+            } catch (error) {
+                setErrorMsg('Failed to get current position')
+                return
+            }
+        }
+
+        await startTracking(effectiveUserId, startLocation.latitude, startLocation.longitude)
+        await startGpsPipeline()
+    }
+
+    const handlePause = () => pauseTracking()
+
+    const handleResume = () => resumeTracking()
+
+    const handleStop = async () => {
+        if (watchSubscription.current) {
+            watchSubscription.current.remove()
+            watchSubscription.current = null
+        }
+
+        try {
+            await stopBackgroundLocationTracking()
+            setLocationCallback(null)
+            setIsBackgroundActive(false)
+        } catch (error) {
+            setErrorMsg('Failed to stop background tracking')
+        }
+
+        await stopTracking()
+
+        if (isMounted.current && permissionGranted) {
+            previewSubscription.current = await Location.watchPositionAsync(
+                {
+                    accuracy: Location.Accuracy.BestForNavigation,
+                    timeInterval: PREVIEW_TIME_INTERVAL_MS,
+                    distanceInterval: PREVIEW_DISTANCE_INTERVAL_M,
+                },
+                updateLocationPreview,
+            )
+        }
+    }
 
     useEffect(() => {
         isMounted.current = true
@@ -64,82 +185,26 @@ export const useTracking = (userId: string | null) => {
         const effectiveUserId = userId ?? 'anonymous'
         if (!isInitialized) {
             initialize(effectiveUserId)
+        } else if (prevUserIdRef.current !== userId) {
+            refreshUnfinishedSession(effectiveUserId)
         }
-    }, [userId, isInitialized, initialize])
+        prevUserIdRef.current = userId
+    }, [userId, isInitialized, initialize, refreshUnfinishedSession])
 
-    const requestPermission = useCallback(async () => {
-        const { status } = await Location.requestForegroundPermissionsAsync()
-        if (status !== 'granted') {
-            setErrorMsg('Location permission denied')
-            return false
+    useEffect(() => {
+        if (trackingStatus === 'start' && !isBackgroundActive && permissionGranted) {
+            startGpsPipeline()
         }
-        setPermissionGranted(true)
-        return true
-    }, [])
-
-    const trackingStatusRef = useRef(trackingStatus)
-    trackingStatusRef.current = trackingStatus
-
-    const processLocationUpdate = useCallback(
-        async (newLocation: Location.LocationObject) => {
-            if (!isMounted.current) return
-
-            const { latitude, longitude, accuracy, altitude, speed } = newLocation.coords
-
-            setLocation({
-                latitude,
-                longitude,
-                accuracy: accuracy ?? 0,
-                altitude,
-                speed,
-            })
-
-            setGpsLevel(getGpsLevelFromAccuracy(accuracy ?? 100))
-
-            if (trackingStatusRef.current === 'start') {
-                console.log(`[useTracking] Processing location: speed=${((speed ?? 0) * 3.6).toFixed(1)}km/h, accuracy=${accuracy?.toFixed(0)}m`)
-                await processLocation(
-                    latitude,
-                    longitude,
-                    altitude ?? 0,
-                    speed ?? 0,
-                    accuracy ?? 0,
-                    Date.now()
-                )
-            }
-        },
-        [processLocation]
-    )
-
-    const updateLocationPreview = useCallback((newLocation: Location.LocationObject) => {
-        if (!isMounted.current) return
-
-        const { latitude, longitude, accuracy, altitude, speed } = newLocation.coords
-        setLocation({
-            latitude,
-            longitude,
-            accuracy: accuracy ?? 0,
-            altitude,
-            speed,
-        })
-        setGpsLevel(getGpsLevelFromAccuracy(accuracy ?? 100))
-    }, [])
+    }, [trackingStatus, isBackgroundActive, permissionGranted])
 
     useEffect(() => {
         if (activityState === 'resting') {
             if (restingStartTime.current === null) {
                 restingStartTime.current = Date.now()
                 restingAlertSent.current = false
-            } else if (
-                !restingAlertSent.current &&
-                Date.now() - restingStartTime.current > RESTING_ALERT_THRESHOLD
-            ) {
+            } else if (!restingAlertSent.current && Date.now() - restingStartTime.current > RESTING_ALERT_THRESHOLD) {
                 Notifications.scheduleNotificationAsync({
-                    content: {
-                        title: 'Snowby',
-                        body: t('tracking.restingAlert'),
-                        data: { action: 'stop_tracking' },
-                    },
+                    content: { title: 'Snowby', body: t('tracking.restingAlert'), data: { action: 'stop_tracking' } },
                     trigger: null,
                 })
                 restingAlertSent.current = true
@@ -149,119 +214,6 @@ export const useTracking = (userId: string | null) => {
             restingAlertSent.current = false
         }
     }, [activityState])
-
-    const handleStart = useCallback(async () => {
-        console.log('[Tracking] handleStart called')
-        const effectiveUserId = userId ?? 'anonymous'
-
-        const hasPermission = permissionGranted || (await requestPermission())
-        if (!hasPermission) {
-            console.log('[Tracking] permission not granted')
-            return
-        }
-        console.log('[Tracking] permission granted')
-
-        if (previewSubscription.current) {
-            previewSubscription.current.remove()
-            previewSubscription.current = null
-        }
-
-        let startLocation = location
-        if (!startLocation) {
-            console.log('[Tracking] getting current position...')
-            try {
-                const currentPosition = await Location.getCurrentPositionAsync({
-                    accuracy: Location.Accuracy.BestForNavigation,
-                })
-                startLocation = {
-                    latitude: currentPosition.coords.latitude,
-                    longitude: currentPosition.coords.longitude,
-                    accuracy: currentPosition.coords.accuracy ?? 0,
-                    altitude: currentPosition.coords.altitude,
-                    speed: currentPosition.coords.speed,
-                }
-                setLocation(startLocation)
-                setGpsLevel(getGpsLevelFromAccuracy(startLocation.accuracy))
-                console.log('[Tracking] got position:', startLocation.latitude, startLocation.longitude)
-            } catch (error) {
-                console.log('[Tracking] failed to get current position', error)
-                return
-            }
-        }
-
-        try {
-            setLocationCallback((locations) => {
-                locations.forEach(processLocationUpdate)
-            })
-            await startBackgroundLocationTracking()
-            setIsBackgroundActive(true)
-            console.log('[Tracking] background tracking started')
-        } catch (error) {
-            console.log('[Tracking] Background tracking not available:', error)
-            setIsBackgroundActive(false)
-        }
-
-        try {
-            console.log('[Tracking] starting tracking...')
-            await startTracking(effectiveUserId, startLocation.latitude, startLocation.longitude)
-            console.log('[Tracking] tracking started successfully')
-
-            watchSubscription.current = await Location.watchPositionAsync(
-                {
-                    accuracy: Location.Accuracy.BestForNavigation,
-                    timeInterval: 1000,
-                    distanceInterval: 1,
-                },
-                processLocationUpdate
-            )
-            console.log('[Tracking] watch position started')
-        } catch (error) {
-            console.error('[Tracking] Error starting tracking:', error)
-        }
-    }, [
-        userId,
-        permissionGranted,
-        requestPermission,
-        location,
-        startTracking,
-        processLocationUpdate,
-    ])
-
-    const handlePause = useCallback(() => {
-        pauseTracking()
-    }, [pauseTracking])
-
-    const handleResume = useCallback(() => {
-        resumeTracking()
-    }, [resumeTracking])
-
-    const handleStop = useCallback(async () => {
-        if (watchSubscription.current) {
-            watchSubscription.current.remove()
-            watchSubscription.current = null
-        }
-
-        try {
-            await stopBackgroundLocationTracking()
-            setLocationCallback(null)
-            setIsBackgroundActive(false)
-        } catch (error) {
-            console.log('Error stopping background tracking:', error)
-        }
-
-        await stopTracking()
-
-        if (isMounted.current && permissionGranted) {
-            previewSubscription.current = await Location.watchPositionAsync(
-                {
-                    accuracy: Location.Accuracy.BestForNavigation,
-                    timeInterval: 2000,
-                    distanceInterval: 5,
-                },
-                updateLocationPreview
-            )
-        }
-    }, [stopTracking, permissionGranted, updateLocationPreview])
 
     useEffect(() => {
         let cancelled = false
@@ -274,10 +226,10 @@ export const useTracking = (userId: string | null) => {
                 previewSubscription.current = await Location.watchPositionAsync(
                     {
                         accuracy: Location.Accuracy.BestForNavigation,
-                        timeInterval: 2000,
-                        distanceInterval: 5,
+                        timeInterval: PREVIEW_TIME_INTERVAL_MS,
+                        distanceInterval: PREVIEW_DISTANCE_INTERVAL_M,
                     },
-                    updateLocationPreview
+                    updateLocationPreview,
                 )
             }
         }
@@ -289,7 +241,7 @@ export const useTracking = (userId: string | null) => {
             previewSubscription.current?.remove()
             previewSubscription.current = null
         }
-    }, [requestPermission, updateLocationPreview])
+    }, [])
 
     return {
         isInitialized,

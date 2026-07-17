@@ -94,31 +94,27 @@ export class LocationProcessor {
     processLocation = async (
         latitude: number,
         longitude: number,
-        altitude: number,
+        altitude: number | null,
         speed: number,
         accuracy: number,
         timestamp: number,
     ): Promise<{ locationId: number; stats: SessionStats; activityState: ActivityState } | null> => {
         if (!this.sessionId) {
-            console.log('[LocationProcessor] No sessionId, skipping')
             return null
         }
-
-        console.log(
-            `[LocationProcessor] Processing: speed=${(speed * 3.6).toFixed(1)}km/h, accuracy=${accuracy.toFixed(0)}m, alt=${altitude.toFixed(0)}m`,
-        )
 
         if (accuracy > NOISE_FILTER_CONFIG.minAccuracy) {
-            console.log(`[LocationProcessor] Accuracy too low (${accuracy}m > ${NOISE_FILTER_CONFIG.minAccuracy}m), skipping`)
             return null
         }
+
+        const effectiveAltitude = altitude ?? this.lastLocation?.altitude ?? this.highestAltitude ?? 0
 
         const activityState = activityDetector.processLocation({
             id: 0,
             sessionId: this.sessionId,
             latitude,
             longitude,
-            altitude,
+            altitude: effectiveAltitude,
             speed,
             accuracy,
             timestamp,
@@ -131,7 +127,7 @@ export class LocationProcessor {
             this.sessionId,
             latitude,
             longitude,
-            altitude,
+            effectiveAltitude,
             speed,
             accuracy,
             timestamp,
@@ -152,13 +148,15 @@ export class LocationProcessor {
             this.maxSpeed = speedKmh
         }
 
-        if (this.highestAltitude === null || altitude > this.highestAltitude) {
-            this.highestAltitude = altitude
-        }
+        if (altitude !== null) {
+            if (this.highestAltitude === null || altitude > this.highestAltitude) {
+                this.highestAltitude = altitude
+            }
 
-        const currentVerticalDrop = this.highestAltitude - altitude
-        if (currentVerticalDrop > this.maxVertical) {
-            this.maxVertical = currentVerticalDrop
+            const currentVerticalDrop = this.highestAltitude - altitude
+            if (currentVerticalDrop > this.maxVertical) {
+                this.maxVertical = currentVerticalDrop
+            }
         }
 
         if (activityState === 'skiing') {
@@ -177,7 +175,7 @@ export class LocationProcessor {
             sessionId: this.sessionId,
             latitude,
             longitude,
-            altitude,
+            altitude: effectiveAltitude,
             speed,
             accuracy,
             timestamp,

@@ -8,6 +8,7 @@ interface RankingsByBoundsParams {
 }
 
 export const rankingKeys = {
+    all: () => ['ranking'] as const,
     byBounds: (params: RankingsByBoundsParams) => ['ranking', 'byBounds', params] as const,
 }
 

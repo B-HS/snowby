@@ -5,24 +5,21 @@ import type { RecoveryOption } from '@/lib/tracking/tracking.types'
 export const useCrashRecovery = (userId: string | null) => {
     const [showRecoveryModal, setShowRecoveryModal] = useState(false)
     const [recoveryError, setRecoveryError] = useState<string | null>(null)
-    const { unfinishedSession, handleRecoveryOption, isInitialized } =
-        useTrackingStore()
+    const { unfinishedSession, handleRecoveryOption, isInitialized } = useTrackingStore()
 
     useEffect(() => {
-        if (!userId || !isInitialized) return
+        if (!isInitialized) return
 
         if (unfinishedSession?.hasUnfinished) {
             setShowRecoveryModal(true)
         }
-    }, [userId, isInitialized, unfinishedSession])
+    }, [isInitialized, unfinishedSession])
 
     const handleRecovery = async (option: RecoveryOption) => {
-        if (!userId) return
-
         setRecoveryError(null)
 
         try {
-            await handleRecoveryOption(option, userId)
+            await handleRecoveryOption(option, userId ?? 'anonymous')
             setShowRecoveryModal(false)
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Recovery failed'

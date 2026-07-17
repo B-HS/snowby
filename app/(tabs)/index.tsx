@@ -3,6 +3,8 @@ import { TrackingControls } from '@/components/tracking/tracking-controls'
 import { TrackingStats } from '@/components/tracking/tracking-stats'
 import { MapView, MapViewRef } from '@/components/map/map-view'
 import { userKeys } from '@/entities/users/users.query'
+import { activityKeys } from '@/entities/activities/activities.query'
+import { rankingKeys } from '@/entities/rankings/rankings.query'
 import { useCrashRecovery } from '@/lib/hooks/use-crash-recovery'
 import { useTracking } from '@/lib/hooks/use-tracking'
 import { useTranslation } from '@/lib/i18n'
@@ -11,8 +13,10 @@ import { GPS_SIGNAL_LEVELS } from '@/lib/constant'
 import { getCameraPositionForResort } from '@/lib/utils/resort-matcher'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'expo-router'
-import { useCallback, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { View } from 'react-native'
+
+const MAX_POLYLINE_POINTS = 500
 
 const SAMPLE_SEGMENTS: [number, number][][] = [
     [
@@ -36,6 +40,7 @@ const DEFAULT_CAMERA = {
 const Home = () => {
     const { t } = useTranslation()
     const mapRef = useRef<MapViewRef>(null)
+    const hasCenteredCamera = useRef(false)
     const queryClient = useQueryClient()
     const { user } = useAppStore()
     const userId = user?.id ?? null
@@ -46,59 +51,56 @@ const Home = () => {
     const { showRecoveryModal, unfinishedSession, handleRecovery, dismissRecovery } = useCrashRecovery(userId)
 
     useEffect(() => {
-        if (location && mapRef.current) {
-            mapRef.current.setCameraPosition(
-                getCameraPositionForResort(location.latitude, location.longitude)
-            )
+        if (location && mapRef.current && !hasCenteredCamera.current) {
+            mapRef.current.setCameraPosition(getCameraPositionForResort(location.latitude, location.longitude))
+            hasCenteredCamera.current = true
         }
     }, [location])
 
-    const invalidateTrackingData = useCallback(() => {
-        queryClient.invalidateQueries({ queryKey: ['activities'] })
-        queryClient.invalidateQueries({ queryKey: ['ranking'] })
+    const handleStopWithRefetch = async () => {
+        await handleStop()
+        queryClient.invalidateQueries({ queryKey: activityKeys.feedAll() })
+        queryClient.invalidateQueries({ queryKey: rankingKeys.all() })
         if (userId) {
             queryClient.invalidateQueries({ queryKey: userKeys.summary(userId) })
         }
-    }, [queryClient, userId])
-
-    const handleStopWithRefetch = useCallback(async () => {
-        await handleStop()
-        invalidateTrackingData()
-    }, [handleStop, invalidateTrackingData])
+    }
 
     const segments = trackingData.segments.length > 0 ? trackingData.segments : SAMPLE_SEGMENTS
     const validSegments = segments.filter((seg) => seg.length >= 2)
 
-    const polylinePoints = validSegments.flatMap((segment) =>
-        segment.map(([lng, lat]) => ({ latitude: lat, longitude: lng }))
-    )
+    const polylinePoints = validSegments.flatMap((segment) => segment.map(([lng, lat]) => ({ latitude: lat, longitude: lng })))
+    const polylineStep = polylinePoints.length > MAX_POLYLINE_POINTS ? Math.ceil(polylinePoints.length / MAX_POLYLINE_POINTS) : 1
+    const sampledPolylinePoints = polylineStep > 1 ? polylinePoints.filter((_, index) => index % polylineStep === 0) : polylinePoints
 
-    const cameraPosition = location
-        ? getCameraPositionForResort(location.latitude, location.longitude)
-        : DEFAULT_CAMERA
+    const cameraPosition = DEFAULT_CAMERA
 
-    const polylines = polylinePoints.length >= 2
-        ? [{ points: polylinePoints, color: 'rgba(59, 130, 246, 0.8)', width: 4 }]
-        : []
+    const polylines = sampledPolylinePoints.length >= 2 ? [{ points: sampledPolylinePoints, color: 'rgba(59, 130, 246, 0.8)', width: 4 }] : []
 
     const gpsColor = GPS_SIGNAL_LEVELS[gpsLevel].color
     const circles = location
-        ? [{
-              center: { latitude: location.latitude, longitude: location.longitude },
-              radius: location.accuracy,
-              fillColor: `${gpsColor}33`,
-              strokeColor: gpsColor,
-              strokeWidth: 1,
-          }]
+        ? [
+              {
+                  center: { latitude: location.latitude, longitude: location.longitude },
+                  radius: location.accuracy,
+                  fillColor: `${gpsColor}33`,
+                  strokeColor: gpsColor,
+                  strokeWidth: 1,
+              },
+          ]
         : []
 
-    const markers = location
-        ? [{ coordinates: { latitude: location.latitude, longitude: location.longitude }, id: 'current-location' }]
-        : []
+    const markers = location ? [{ coordinates: { latitude: location.latitude, longitude: location.longitude }, id: 'current-location' }] : []
 
     return (
         <View className='flex-1 pt-2'>
-            <TrackingStats gpsLevel={gpsLevel} trackingStatus={trackingStatus} trackingData={trackingData} activityState={activityState} currentLocation={location} />
+            <TrackingStats
+                gpsLevel={gpsLevel}
+                trackingStatus={trackingStatus}
+                trackingData={trackingData}
+                activityState={activityState}
+                currentLocation={location}
+            />
 
             <View className='h-1/2'>
                 {__DEV__ && (
@@ -108,14 +110,7 @@ const Home = () => {
                         </Link>
                     </View>
                 )}
-                <MapView
-                    ref={mapRef}
-                    style={{ flex: 1 }}
-                    cameraPosition={cameraPosition}
-                    polylines={polylines}
-                    circles={circles}
-                    markers={markers}
-                />
+                <MapView ref={mapRef} style={{ flex: 1 }} cameraPosition={cameraPosition} polylines={polylines} circles={circles} markers={markers} />
             </View>
 
             <TrackingControls

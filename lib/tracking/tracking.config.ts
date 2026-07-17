@@ -45,6 +45,7 @@ export const SYNC_CONFIG = {
     batchSize: 100,
     retryDelay: 5000,
     maxRetries: 3,
+    finalSyncMaxAttempts: 20,
 } as const
 
 export const RESTING_ALERT_THRESHOLD = 30 * 60 * 1000

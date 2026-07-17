@@ -29,10 +29,18 @@ type TrackingStore = {
     pauseTracking: () => void
     resumeTracking: () => void
     stopTracking: () => Promise<void>
-    processLocation: (latitude: number, longitude: number, altitude: number, speed: number, accuracy: number, timestamp: number) => Promise<void>
+    processLocation: (
+        latitude: number,
+        longitude: number,
+        altitude: number | null,
+        speed: number,
+        accuracy: number,
+        timestamp: number,
+    ) => Promise<void>
     updateStats: (stats: SessionStats) => void
     setActivityState: (state: ActivityState) => void
     checkUnfinishedSession: (userId: string) => Promise<UnfinishedSessionInfo>
+    refreshUnfinishedSession: (userId: string) => Promise<void>
     handleRecoveryOption: (option: RecoveryOption, userId: string) => Promise<void>
     migrateAndSyncOnLogin: (userId: string) => Promise<number>
     reset: () => void
@@ -154,10 +162,22 @@ export const useTrackingStore = create<TrackingStore>((set, get) => ({
         const { sessionId } = get()
         if (!sessionId) return
 
+        const session = await queries.getSession(sessionId)
+        const isAnonymous = !session || session.userId === 'anonymous'
+
         await syncManager.finalSync()
 
         const endTime = Date.now()
         await queries.completeSession(sessionId, endTime)
+
+        if (!isAnonymous) {
+            try {
+                await syncManager.completeServerSession(sessionId)
+                await queries.markSessionSynced(sessionId)
+            } catch (error) {
+                console.error('[TrackingStore] failed to finalize server session:', error)
+            }
+        }
 
         locationProcessor.reset()
         syncManager.reset()
@@ -170,7 +190,7 @@ export const useTrackingStore = create<TrackingStore>((set, get) => ({
         })
     },
 
-    processLocation: async (latitude: number, longitude: number, altitude: number, speed: number, accuracy: number, timestamp: number) => {
+    processLocation: async (latitude: number, longitude: number, altitude: number | null, speed: number, accuracy: number, timestamp: number) => {
         const { trackingStatus, sessionId } = get()
         if (trackingStatus !== 'start' || !sessionId) return
 
@@ -191,7 +211,7 @@ export const useTrackingStore = create<TrackingStore>((set, get) => ({
                         ...state.trackingData,
                         currentLatitude: latitude,
                         currentLongitude: longitude,
-                        currentAltitude: altitude,
+                        currentAltitude: altitude ?? state.trackingData.currentAltitude,
                         currentSpeed: speed * 3.6,
                         totalDistance: stats.totalDistance,
                         maxVertical: stats.maxVertical,
@@ -247,6 +267,11 @@ export const useTrackingStore = create<TrackingStore>((set, get) => ({
         }
     },
 
+    refreshUnfinishedSession: async (userId: string) => {
+        const unfinished = await get().checkUnfinishedSession(userId)
+        set({ unfinishedSession: unfinished.hasUnfinished ? unfinished : null })
+    },
+
     handleRecoveryOption: async (option: RecoveryOption, _userId: string) => {
         const { unfinishedSession } = get()
         if (!unfinishedSession?.session) return
@@ -273,7 +298,9 @@ export const useTrackingStore = create<TrackingStore>((set, get) => ({
                 syncManager.reset()
                 syncManager.setSessionId(session.id)
                 syncManager.setLastSyncedLocationId(session.lastSyncedLocationId)
-                syncManager.start()
+                if (session.userId !== 'anonymous') {
+                    syncManager.start()
+                }
 
                 const existingSegments = await queries.getLocationsGroupedBySegment(session.id)
                 existingSegments.push([])
@@ -321,19 +348,17 @@ export const useTrackingStore = create<TrackingStore>((set, get) => ({
         const migratedCount = await queries.migrateAnonymousSessions(userId)
         console.log('[TrackingStore] migrated sessions:', migratedCount)
 
-        if (migratedCount > 0) {
-            const unsyncedSessions = await queries.getUnsyncedSessions(userId)
-            console.log('[TrackingStore] unsynced sessions to sync:', unsyncedSessions.length)
+        const unsyncedSessions = await queries.getUnsyncedSessions(userId)
+        console.log('[TrackingStore] unsynced sessions to sync:', unsyncedSessions.length)
 
-            for (const session of unsyncedSessions) {
-                if (session.isCompleted) {
-                    try {
-                        await syncManager.syncCompletedSession(session)
-                        await queries.markSessionSynced(session.id)
-                        console.log('[TrackingStore] synced completed session:', session.id)
-                    } catch (error) {
-                        console.error('[TrackingStore] failed to sync session:', session.id, error)
-                    }
+        for (const session of unsyncedSessions) {
+            if (session.isCompleted) {
+                try {
+                    await syncManager.syncCompletedSession(session)
+                    await queries.markSessionSynced(session.id)
+                    console.log('[TrackingStore] synced completed session:', session.id)
+                } catch (error) {
+                    console.error('[TrackingStore] failed to sync session:', session.id, error)
                 }
             }
         }

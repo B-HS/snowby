@@ -15,6 +15,7 @@ export class SyncManager {
     private retryCount: number = 0
     private lastSyncedLocationId: number = 0
     private statusCallback: SyncStatusCallback | null = null
+    private isStarted: boolean = false
 
     setSessionId = (sessionId: string) => {
         this.sessionId = sessionId
@@ -29,6 +30,7 @@ export class SyncManager {
     }
 
     start = () => {
+        this.isStarted = true
         if (this.syncInterval) return
 
         this.syncInterval = setInterval(() => {
@@ -81,11 +83,7 @@ export class SyncManager {
                 throw new Error('Session not found')
             }
 
-            const unsyncedLocations = await queries.getUnsyncedLocations(
-                this.sessionId!,
-                this.lastSyncedLocationId,
-                SYNC_CONFIG.batchSize
-            )
+            const unsyncedLocations = await queries.getUnsyncedLocations(this.sessionId!, this.lastSyncedLocationId, SYNC_CONFIG.batchSize)
 
             const unsyncedRuns = await queries.getUnsyncedRuns(this.sessionId!)
 
@@ -128,6 +126,11 @@ export class SyncManager {
                     maxSpeed: session.maxSpeed,
                     timeOnSlope: session.timeOnSlope,
                 },
+                sessionStart: {
+                    startTime: session.startTime,
+                    startLatitude: session.startLatitude,
+                    startLongitude: session.startLongitude,
+                },
                 lastSyncedClientId: this.lastSyncedLocationId,
             }
 
@@ -136,7 +139,7 @@ export class SyncManager {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    Cookie: cookie,
+                    'Cookie': cookie,
                 },
                 credentials: 'include',
                 body: JSON.stringify(payload),
@@ -211,7 +214,7 @@ export class SyncManager {
             maxSpeed: number
             avgSpeed: number
             duration: number
-        }>
+        }>,
     ) => {
         if (!this.sessionId) return
 
@@ -226,7 +229,8 @@ export class SyncManager {
                     loc.accuracy,
                     new Date(loc.timestamp).getTime(),
                     loc.activityState as 'skiing' | 'lifting' | 'resting',
-                    loc.segmentIndex ?? 0
+                    loc.segmentIndex ?? 0,
+                    1,
                 )
             }
         }
@@ -246,7 +250,7 @@ export class SyncManager {
                     run.verticalDrop,
                     run.maxSpeed,
                     run.avgSpeed,
-                    run.duration
+                    run.duration,
                 )
             }
         }
@@ -255,22 +259,22 @@ export class SyncManager {
     finalSync = async (): Promise<boolean> => {
         this.stop()
 
-        for (let i = 0; i < 3; i++) {
+        if (!this.isStarted || !this.sessionId) return true
+
+        for (let attempt = 0; attempt < SYNC_CONFIG.finalSyncMaxAttempts; attempt++) {
+            const [remainingLocations, remainingRuns] = await Promise.all([
+                queries.getUnsyncedLocations(this.sessionId, this.lastSyncedLocationId, 1),
+                queries.getUnsyncedRuns(this.sessionId),
+            ])
+
+            if (remainingLocations.length === 0 && remainingRuns.length === 0) return true
+
             const success = await this.sync()
-            if (success) {
-                const remaining = await queries.getUnsyncedLocations(
-                    this.sessionId!,
-                    this.lastSyncedLocationId,
-                    1
-                )
-                if (remaining.length === 0) {
-                    return true
-                }
-            }
-            await new Promise((resolve) => setTimeout(resolve, 1000))
+            if (!success) await new Promise((resolve) => setTimeout(resolve, SYNC_CONFIG.retryDelay))
         }
 
-        return false
+        const stillRemaining = await queries.getUnsyncedLocations(this.sessionId, this.lastSyncedLocationId, 1)
+        return stillRemaining.length === 0
     }
 
     syncCompletedSession = async (session: {
@@ -295,32 +299,11 @@ export class SyncManager {
             throw new Error('Not authenticated')
         }
 
-        const createResponse = await fetch(`${API_URL}/api/tracking/sessions`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Cookie: cookie,
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-                startTime: session.startTime,
-                startLatitude: session.startLatitude,
-                startLongitude: session.startLongitude,
-            }),
-        })
-
-        if (!createResponse.ok) {
-            throw new Error(`Failed to create session on server: ${createResponse.status}`)
-        }
-
-        const serverSession = await createResponse.json()
-        const serverSessionId = serverSession.id
-
         const locations = await queries.getLocations(session.id)
         const runs = await queries.getRuns(session.id)
 
         const payload: SyncDataPayload = {
-            sessionId: serverSessionId,
+            sessionId: session.id,
             locations: locations.map((loc) => ({
                 latitude: loc.latitude,
                 longitude: loc.longitude,
@@ -351,6 +334,11 @@ export class SyncManager {
                 maxSpeed: session.maxSpeed,
                 timeOnSlope: session.timeOnSlope,
             },
+            sessionStart: {
+                startTime: session.startTime,
+                startLatitude: session.startLatitude,
+                startLongitude: session.startLongitude,
+            },
             lastSyncedClientId: 0,
         }
 
@@ -358,7 +346,7 @@ export class SyncManager {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                Cookie: cookie,
+                'Cookie': cookie,
             },
             credentials: 'include',
             body: JSON.stringify(payload),
@@ -368,18 +356,7 @@ export class SyncManager {
             throw new Error(`Sync failed: ${syncResponse.status}`)
         }
 
-        const completeResponse = await fetch(`${API_URL}/api/tracking/sessions/${serverSessionId}/complete`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Cookie: cookie,
-            },
-            credentials: 'include',
-        })
-
-        if (!completeResponse.ok) {
-            throw new Error(`Failed to complete session: ${completeResponse.status}`)
-        }
+        await this.completeServerSession(session.id)
 
         if (locations.length > 0) {
             await queries.markLocationsSynced(locations.map((l) => l.id))
@@ -391,12 +368,35 @@ export class SyncManager {
         return true
     }
 
+    completeServerSession = async (sessionId: string): Promise<boolean> => {
+        const cookie = getAuthCookie()
+        if (!cookie) {
+            throw new Error('Not authenticated')
+        }
+
+        const response = await fetch(`${API_URL}/api/tracking/sessions/${sessionId}/complete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Cookie': cookie,
+            },
+            credentials: 'include',
+        })
+
+        if (!response.ok) {
+            throw new Error(`Failed to complete session: ${response.status}`)
+        }
+
+        return true
+    }
+
     reset = () => {
         this.stop()
         this.sessionId = null
         this.syncPromise = null
         this.retryCount = 0
         this.lastSyncedLocationId = 0
+        this.isStarted = false
     }
 }
 

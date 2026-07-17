@@ -145,13 +145,14 @@ export const saveLocation = async (
     timestamp: number,
     activityState: ActivityState,
     segmentIndex: number = 0,
+    isSynced: number = 0,
 ): Promise<number> => {
     const db = await getDatabase()
     const result = await db.runAsync(
         `INSERT INTO locations
-         (session_id, latitude, longitude, altitude, speed, accuracy, timestamp, activity_state, segment_index)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [sessionId, latitude, longitude, altitude, speed, accuracy, timestamp, activityState, segmentIndex],
+         (session_id, latitude, longitude, altitude, speed, accuracy, timestamp, activity_state, segment_index, is_synced)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [sessionId, latitude, longitude, altitude, speed, accuracy, timestamp, activityState, segmentIndex, isSynced],
     )
     return result.lastInsertRowId
 }
