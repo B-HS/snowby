@@ -9,7 +9,7 @@ import { formatStatValue, formatDistanceFromMeters } from '@/lib/units'
 import { cn } from '@/lib/utils'
 import { findResortByCoordinate } from '@/lib/utils/resort-matcher'
 import { Clock, MapPin, Snowflake } from 'lucide-react-native'
-import { FC, useMemo } from 'react'
+import { FC } from 'react'
 import { View } from 'react-native'
 import { HistoryCardItem } from './history-card-item'
 
@@ -32,12 +32,7 @@ export const LocalHistoryCard: FC<LocalHistoryCardProps> = ({ session }) => {
     const { t } = useTranslation()
     const { measurementUnit } = useAppStore()
 
-    const resort = useMemo(() => {
-        if (session.startLatitude && session.startLongitude) {
-            return findResortByCoordinate(session.startLatitude, session.startLongitude)
-        }
-        return null
-    }, [session.startLatitude, session.startLongitude])
+    const resort = session.startLatitude && session.startLongitude ? findResortByCoordinate(session.startLatitude, session.startLongitude) : null
 
     const statsData = {
         totalDistance: session.totalDistance,
@@ -57,15 +52,11 @@ export const LocalHistoryCard: FC<LocalHistoryCardProps> = ({ session }) => {
                     <View className='flex flex-col'>
                         <View className='flex gap-1 flex-row items-center'>
                             <Icon as={Clock} size={12} className='text-primary/80' />
-                            <Text className='text-sm font-medium'>
-                                {formatDate(session.startTime)}
-                            </Text>
+                            <Text className='text-sm font-medium'>{formatDate(session.startTime)}</Text>
                         </View>
                         <View className='flex gap-px flex-row items-center'>
                             <Icon as={MapPin} size={12} className='text-primary/80' />
-                            <Text className='text-sm text-primary/80'>
-                                {resort?.id !== 'unknown' ? resort?.name : t('history.unknownResort')}
-                            </Text>
+                            <Text className='text-sm text-primary/80'>{resort?.id !== 'unknown' ? resort?.name : t('history.unknownResort')}</Text>
                         </View>
                     </View>
                 </View>
@@ -84,11 +75,7 @@ export const LocalHistoryCard: FC<LocalHistoryCardProps> = ({ session }) => {
                     } else if (key === 'type') {
                         value = t('user.snowboard')
                     } else {
-                        value = formatStatValue(
-                            statsData[key as keyof typeof statsData],
-                            item.unitType,
-                            measurementUnit
-                        )
+                        value = formatStatValue(statsData[key as keyof typeof statsData], item.unitType, measurementUnit)
                     }
                     return (
                         <HistoryCardItem

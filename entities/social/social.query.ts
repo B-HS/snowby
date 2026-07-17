@@ -1,14 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-    checkIsFollowing,
-    fetchFollowers,
-    fetchFollowing,
-    followUser,
-    hideUser,
-    reportUser,
-    unfollowUser,
-    unhideUser,
-} from './social.api'
+import { checkIsFollowing, fetchFollowers, fetchFollowing, followUser, hideUser, reportUser, unfollowUser, unhideUser } from './social.api'
 import { activityKeys } from '@/entities/activities/activities.query'
 
 export const socialKeys = {
@@ -43,9 +34,10 @@ export const useFollowUser = () => {
 
     return useMutation({
         mutationFn: followUser,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: activityKeys.feed('all') })
-            queryClient.invalidateQueries({ queryKey: activityKeys.feed('friend') })
+        onSuccess: (_, userId) => {
+            queryClient.invalidateQueries({ queryKey: activityKeys.feedAll() })
+            queryClient.invalidateQueries({ queryKey: socialKeys.isFollowing(userId) })
+            queryClient.invalidateQueries({ queryKey: ['social'] })
         },
     })
 }
@@ -55,9 +47,10 @@ export const useUnfollowUser = () => {
 
     return useMutation({
         mutationFn: unfollowUser,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: activityKeys.feed('all') })
-            queryClient.invalidateQueries({ queryKey: activityKeys.feed('friend') })
+        onSuccess: (_, userId) => {
+            queryClient.invalidateQueries({ queryKey: activityKeys.feedAll() })
+            queryClient.invalidateQueries({ queryKey: socialKeys.isFollowing(userId) })
+            queryClient.invalidateQueries({ queryKey: ['social'] })
         },
     })
 }
@@ -68,7 +61,7 @@ export const useHideUser = () => {
     return useMutation({
         mutationFn: hideUser,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: activityKeys.feed('all') })
+            queryClient.invalidateQueries({ queryKey: activityKeys.feedAll() })
         },
     })
 }
@@ -79,13 +72,12 @@ export const useUnhideUser = () => {
     return useMutation({
         mutationFn: unhideUser,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: activityKeys.feed('all') })
+            queryClient.invalidateQueries({ queryKey: activityKeys.feedAll() })
         },
     })
 }
 
 export const useReportUser = () =>
     useMutation({
-        mutationFn: ({ userId, reason }: { userId: string; reason: string }) =>
-            reportUser(userId, reason),
+        mutationFn: ({ userId, reason }: { userId: string; reason: string }) => reportUser(userId, reason),
     })

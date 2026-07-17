@@ -6,7 +6,7 @@ import { useTranslation } from '@/lib/i18n'
 import { useAppStore } from '@/lib/store'
 import type { TrackingSession } from '@/lib/tracking/tracking.types'
 import { useFocusEffect } from 'expo-router'
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native'
 
 const LocalHistories = () => {
@@ -17,7 +17,7 @@ const LocalHistories = () => {
     const [isLoading, setIsLoading] = useState(true)
     const [isRefreshing, setIsRefreshing] = useState(false)
 
-    const loadSessions = useCallback(async () => {
+    const loadSessions = async () => {
         try {
             await initializeDatabase()
             const data = await getCompletedSessions(userId)
@@ -25,24 +25,22 @@ const LocalHistories = () => {
         } catch (error) {
             console.error('Failed to load local sessions:', error)
         }
-    }, [userId])
+    }
 
-    const onRefresh = useCallback(async () => {
+    const onRefresh = async () => {
         setIsRefreshing(true)
         await loadSessions()
         setIsRefreshing(false)
-    }, [loadSessions])
+    }
 
-    useFocusEffect(
-        useCallback(() => {
-            const init = async () => {
-                setIsLoading(true)
-                await loadSessions()
-                setIsLoading(false)
-            }
-            init()
-        }, [loadSessions])
-    )
+    useFocusEffect(() => {
+        const init = async () => {
+            setIsLoading(true)
+            await loadSessions()
+            setIsLoading(false)
+        }
+        init()
+    })
 
     if (isLoading) {
         return (
@@ -56,20 +54,14 @@ const LocalHistories = () => {
         <ScrollView
             className='flex-1 p-3.5'
             contentContainerClassName='gap-3.5'
-            refreshControl={
-                <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-            }>
+            refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}>
             {sessions.length === 0 ? (
                 <View className='items-center py-8'>
                     <Text className='text-primary/60'>{t('localHistory.noItems')}</Text>
-                    <Text className='text-primary/40 text-sm mt-1'>
-                        {t('localHistory.noItemsDescription')}
-                    </Text>
+                    <Text className='text-primary/40 text-sm mt-1'>{t('localHistory.noItemsDescription')}</Text>
                 </View>
             ) : (
-                sessions.map((session) => (
-                    <LocalHistoryCard key={session.id} session={session} />
-                ))
+                sessions.map((session) => <LocalHistoryCard key={session.id} session={session} />)
             )}
         </ScrollView>
     )

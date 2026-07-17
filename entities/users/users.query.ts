@@ -34,6 +34,8 @@ export const useUpdateProfile = () => {
         mutationFn: updateUserProfile,
         onSuccess: (data) => {
             queryClient.setQueryData(userKeys.me(), data)
+            queryClient.invalidateQueries({ queryKey: ['user', 'profile'] })
+            queryClient.invalidateQueries({ queryKey: ['user', 'summary'] })
         },
     })
 }

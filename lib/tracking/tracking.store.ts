@@ -29,14 +29,7 @@ type TrackingStore = {
     pauseTracking: () => void
     resumeTracking: () => void
     stopTracking: () => Promise<void>
-    processLocation: (
-        latitude: number,
-        longitude: number,
-        altitude: number,
-        speed: number,
-        accuracy: number,
-        timestamp: number
-    ) => Promise<void>
+    processLocation: (latitude: number, longitude: number, altitude: number, speed: number, accuracy: number, timestamp: number) => Promise<void>
     updateStats: (stats: SessionStats) => void
     setActivityState: (state: ActivityState) => void
     checkUnfinishedSession: (userId: string) => Promise<UnfinishedSessionInfo>
@@ -127,7 +120,7 @@ export const useTrackingStore = create<TrackingStore>((set, get) => ({
                     startLongitude: longitude,
                     currentLatitude: latitude,
                     currentLongitude: longitude,
-                    totalRuns: 1,
+                    totalRuns: 0,
                     segments: [[]],
                 },
                 activityState: 'resting',
@@ -142,6 +135,7 @@ export const useTrackingStore = create<TrackingStore>((set, get) => ({
     },
 
     pauseTracking: () => {
+        locationProcessor.pauseSkiing()
         set({ trackingStatus: 'pause' })
     },
 
@@ -176,25 +170,11 @@ export const useTrackingStore = create<TrackingStore>((set, get) => ({
         })
     },
 
-    processLocation: async (
-        latitude: number,
-        longitude: number,
-        altitude: number,
-        speed: number,
-        accuracy: number,
-        timestamp: number
-    ) => {
+    processLocation: async (latitude: number, longitude: number, altitude: number, speed: number, accuracy: number, timestamp: number) => {
         const { trackingStatus, sessionId } = get()
         if (trackingStatus !== 'start' || !sessionId) return
 
-        const result = await locationProcessor.processLocation(
-            latitude,
-            longitude,
-            altitude,
-            speed,
-            accuracy,
-            timestamp
-        )
+        const result = await locationProcessor.processLocation(latitude, longitude, altitude, speed, accuracy, timestamp)
 
         if (result) {
             const { stats, activityState } = result
@@ -204,9 +184,7 @@ export const useTrackingStore = create<TrackingStore>((set, get) => ({
             set((state) => {
                 const lastSegmentIndex = state.trackingData.segments.length - 1
                 const segments = state.trackingData.segments.map((segment, index) =>
-                    index === lastSegmentIndex
-                        ? [...segment, [longitude, latitude] as [number, number]]
-                        : segment
+                    index === lastSegmentIndex ? [...segment, [longitude, latitude] as [number, number]] : segment,
                 )
                 return {
                     trackingData: {

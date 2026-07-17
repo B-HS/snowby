@@ -9,7 +9,7 @@ import type { TrackingRun } from '@/lib/types'
 import { convertSpeed, convertVertical, formatDistanceFromMeters, formatDuration, getSpeedUnit, getVerticalUnit } from '@/lib/units'
 import { findResortByCoordinate, getCameraPositionForResort } from '@/lib/utils/resort-matcher'
 import { MapPin, X } from 'lucide-react-native'
-import { FC, useMemo } from 'react'
+import { FC } from 'react'
 import { ActivityIndicator, Modal, ScrollView, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { MapView, type PolylineData } from '@/components/map/map-view'
@@ -19,6 +19,9 @@ interface HistoryDetailModalProps {
     onClose: () => void
     activityId: string | null
 }
+
+const SKIING_POLYLINE_COLOR = '#ef4444'
+const SKIING_POLYLINE_WIDTH = 3
 
 const RunCard: FC<{ run: TrackingRun; index: number; measurementUnit: 'metric' | 'imperial' }> = ({ run, index, measurementUnit }) => {
     const { t } = useTranslation()
@@ -65,53 +68,30 @@ export const HistoryDetailModal: FC<HistoryDetailModalProps> = ({ visible, onClo
     const { measurementUnit } = useAppStore()
     const { data, isLoading } = useActivityDetail(activityId ?? '')
 
-    const resort = useMemo(() => {
-        if (data?.activity?.locationLatitude && data?.activity?.locationLongitude) {
-            return findResortByCoordinate(data.activity.locationLatitude, data.activity.locationLongitude)
+    const coordinate =
+        data?.activity?.locationLatitude && data?.activity?.locationLongitude
+            ? { latitude: data.activity.locationLatitude, longitude: data.activity.locationLongitude }
+            : null
+    const resort = coordinate ? findResortByCoordinate(coordinate.latitude, coordinate.longitude) : null
+    const cameraPosition = coordinate ? getCameraPositionForResort(coordinate.latitude, coordinate.longitude) : undefined
+
+    const skiingLocations = data?.locations?.filter((loc) => loc.activityState === 'skiing') ?? []
+    const polylines: PolylineData[] = []
+    let currentSegment: { latitude: number; longitude: number }[] = []
+    let currentSegmentIndex = skiingLocations[0]?.segmentIndex ?? 0
+
+    for (const loc of skiingLocations) {
+        if (loc.segmentIndex !== currentSegmentIndex && currentSegment.length > 0) {
+            polylines.push({ points: currentSegment, color: SKIING_POLYLINE_COLOR, width: SKIING_POLYLINE_WIDTH })
+            currentSegment = []
+            currentSegmentIndex = loc.segmentIndex
         }
-        return null
-    }, [data?.activity?.locationLatitude, data?.activity?.locationLongitude])
+        currentSegment.push({ latitude: loc.latitude, longitude: loc.longitude })
+    }
 
-    const polylines = useMemo((): PolylineData[] => {
-        if (!data?.locations || data.locations.length === 0) return []
-
-        const skiingLocations = data.locations.filter((loc) => loc.activityState === 'skiing')
-        if (skiingLocations.length === 0) return []
-
-        const segments: PolylineData[] = []
-        let currentSegment: { latitude: number; longitude: number }[] = []
-        let currentSegmentIndex = skiingLocations[0]?.segmentIndex ?? 0
-
-        for (const loc of skiingLocations) {
-            if (loc.segmentIndex !== currentSegmentIndex && currentSegment.length > 0) {
-                segments.push({
-                    points: currentSegment,
-                    color: '#ef4444',
-                    width: 3,
-                })
-                currentSegment = []
-                currentSegmentIndex = loc.segmentIndex
-            }
-            currentSegment.push({ latitude: loc.latitude, longitude: loc.longitude })
-        }
-
-        if (currentSegment.length > 0) {
-            segments.push({
-                points: currentSegment,
-                color: '#ef4444',
-                width: 3,
-            })
-        }
-
-        return segments
-    }, [data?.locations])
-
-    const cameraPosition = useMemo(() => {
-        if (data?.activity?.locationLatitude && data?.activity?.locationLongitude) {
-            return getCameraPositionForResort(data.activity.locationLatitude, data.activity.locationLongitude)
-        }
-        return undefined
-    }, [data?.activity?.locationLatitude, data?.activity?.locationLongitude])
+    if (currentSegment.length > 0) {
+        polylines.push({ points: currentSegment, color: SKIING_POLYLINE_COLOR, width: SKIING_POLYLINE_WIDTH })
+    }
 
     if (!activityId) return null
 

@@ -5,7 +5,7 @@ import { useAppStore } from '@/lib/store'
 import { formatStatValue, formatDistanceFromMeters } from '@/lib/units'
 import type { TrackingData, TrackingStatus, ActivityState, GPSSignalLevel } from '@/lib/tracking/tracking.types'
 import { findResortByCoordinate } from '@/lib/utils/resort-matcher'
-import { FC, useEffect, useMemo, useState } from 'react'
+import { FC, useEffect, useState } from 'react'
 import { View } from 'react-native'
 import { GpsSignal } from './gps-signal'
 import { TrackingStatItem } from './tracking-stat-item'
@@ -31,13 +31,7 @@ const ACTIVITY_STATE_KEYS: Record<ActivityState, string> = {
     resting: 'tracking.resting',
 }
 
-export const TrackingStats: FC<TrackingStatsProps> = ({
-    gpsLevel,
-    trackingStatus,
-    trackingData,
-    activityState,
-    currentLocation,
-}) => {
+export const TrackingStats: FC<TrackingStatsProps> = ({ gpsLevel, trackingStatus, trackingData, activityState, currentLocation }) => {
     const { t } = useTranslation()
     const { measurementUnit } = useAppStore()
     const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -63,17 +57,9 @@ export const TrackingStats: FC<TrackingStatsProps> = ({
         }
     }, [trackingStatus, trackingData.startTime])
 
-    const currentResort = useMemo(() => {
-        if (currentLocation) {
-            return findResortByCoordinate(currentLocation.latitude, currentLocation.longitude)
-        }
-        const lat = trackingData.currentLatitude || trackingData.startLatitude
-        const lng = trackingData.currentLongitude || trackingData.startLongitude
-        if (lat && lng) {
-            return findResortByCoordinate(lat, lng)
-        }
-        return null
-    }, [currentLocation, trackingData.currentLatitude, trackingData.currentLongitude, trackingData.startLatitude, trackingData.startLongitude])
+    const resortLatitude = currentLocation?.latitude ?? (trackingData.currentLatitude || trackingData.startLatitude)
+    const resortLongitude = currentLocation?.longitude ?? (trackingData.currentLongitude || trackingData.startLongitude)
+    const currentResort = resortLatitude && resortLongitude ? findResortByCoordinate(resortLatitude, resortLongitude) : null
 
     return (
         <View className='flex-1'>
@@ -82,12 +68,8 @@ export const TrackingStats: FC<TrackingStatsProps> = ({
                     <GpsSignal level={gpsLevel} />
                     <Text className='text-xs text-primary/80'>GPS</Text>
                 </View>
-                <Text className='text-xs text-primary/80'>
-                    {currentResort?.id !== 'unknown' ? currentResort?.name : t('history.unknownResort')}
-                </Text>
-                {trackingStatus !== 'stop' && (
-                    <Text className='text-xs font-medium'>{t(ACTIVITY_STATE_KEYS[activityState])}</Text>
-                )}
+                <Text className='text-xs text-primary/80'>{currentResort?.id !== 'unknown' ? currentResort?.name : t('history.unknownResort')}</Text>
+                {trackingStatus !== 'stop' && <Text className='text-xs font-medium'>{t(ACTIVITY_STATE_KEYS[activityState])}</Text>}
             </View>
             <Separator className='mb-2' />
             <View className='flex flex-row flex-wrap'>
@@ -101,26 +83,14 @@ export const TrackingStats: FC<TrackingStatsProps> = ({
                     value={formatStatValue(trackingData.maxVertical, 'vertical', measurementUnit)}
                     className='w-1/2'
                 />
-                <TrackingStatItem
-                    label={t('tracking.totalRuns')}
-                    value={`${trackingData.totalRuns}`}
-                    className='w-1/2'
-                />
+                <TrackingStatItem label={t('tracking.totalRuns')} value={`${trackingData.totalRuns}`} className='w-1/2' />
                 <TrackingStatItem
                     label={t('tracking.maxSpeed')}
                     value={formatStatValue(trackingData.maxSpeed, 'speed', measurementUnit)}
                     className='w-1/2'
                 />
-                <TrackingStatItem
-                    label={t('tracking.totalTime')}
-                    value={formatElapsedTime(elapsedSeconds)}
-                    className='w-1/2'
-                />
-                <TrackingStatItem
-                    label={t('tracking.timeOnSlope')}
-                    value={formatElapsedTime(trackingData.timeOnSlope)}
-                    className='w-1/2'
-                />
+                <TrackingStatItem label={t('tracking.totalTime')} value={formatElapsedTime(elapsedSeconds)} className='w-1/2' />
+                <TrackingStatItem label={t('tracking.timeOnSlope')} value={formatElapsedTime(trackingData.timeOnSlope)} className='w-1/2' />
             </View>
         </View>
     )

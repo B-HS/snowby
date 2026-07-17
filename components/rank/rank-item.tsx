@@ -5,7 +5,7 @@ import { useTranslation } from '@/lib/i18n'
 import { getImageUrl } from '@/lib/utils'
 import { findResortByCoordinate } from '@/lib/utils/resort-matcher'
 import { MapPin, Trophy } from 'lucide-react-native'
-import { FC, useMemo } from 'react'
+import { FC } from 'react'
 import { View } from 'react-native'
 
 interface RankItemProps {
@@ -25,24 +25,11 @@ const getRankDisplay = (rank: number) => {
     return { icon: false, color: 'text-primary' }
 }
 
-export const RankItem: FC<RankItemProps> = ({
-    username,
-    avatarURL,
-    locationLatitude,
-    locationLongitude,
-    value,
-    unit,
-    rank,
-}) => {
+export const RankItem: FC<RankItemProps> = ({ username, avatarURL, locationLatitude, locationLongitude, value, unit, rank }) => {
     const { t } = useTranslation()
     const rankDisplay = getRankDisplay(rank)
 
-    const resort = useMemo(() => {
-        if (locationLatitude && locationLongitude) {
-            return findResortByCoordinate(locationLatitude, locationLongitude)
-        }
-        return null
-    }, [locationLatitude, locationLongitude])
+    const resort = locationLatitude && locationLongitude ? findResortByCoordinate(locationLatitude, locationLongitude) : null
 
     return (
         <View className='bg-secondary/50 flex flex-row items-center justify-between p-2 px-3 rounded'>
@@ -65,9 +52,7 @@ export const RankItem: FC<RankItemProps> = ({
                         <Text className='text-md font-extrabold'>{username}</Text>
                         <View className='flex gap-px flex-row items-center'>
                             <Icon as={MapPin} size={12} className='text-primary/80' />
-                            <Text className='text-sm text-primary/80'>
-                                {resort?.id !== 'unknown' ? resort?.name : t('history.unknownResort')}
-                            </Text>
+                            <Text className='text-sm text-primary/80'>{resort?.id !== 'unknown' ? resort?.name : t('history.unknownResort')}</Text>
                         </View>
                     </View>
                 </View>

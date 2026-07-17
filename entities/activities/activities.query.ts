@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchActivityDetail, fetchFeed, fetchSelfHistory, fetchUserHistory, saveActivity } from './activities.api'
 
 export const activityKeys = {
-    feed: (filter: HistoryFilter) => ['activities', 'feed', filter] as const,
+    feedAll: () => ['activities', 'feed'] as const,
+    feed: (filter: HistoryFilter, page: number, limit: number) => ['activities', 'feed', filter, page, limit] as const,
     selfHistory: () => ['activities', 'selfHistory'] as const,
     userHistory: (userId: string) => ['activities', 'userHistory', userId] as const,
     detail: (activityId: string) => ['activities', 'detail', activityId] as const,
@@ -11,7 +12,7 @@ export const activityKeys = {
 
 export const useFeed = (filter: HistoryFilter, page: number = 1, limit: number = 20) =>
     useQuery({
-        queryKey: activityKeys.feed(filter),
+        queryKey: activityKeys.feed(filter, page, limit),
         queryFn: () => fetchFeed({ filter, page, limit }),
     })
 

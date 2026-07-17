@@ -2,6 +2,7 @@ import { NOISE_FILTER_CONFIG } from './tracking.config'
 import type { LocationPoint, ActivityState, SessionStats, CurrentRunData } from './tracking.types'
 import * as queries from '@/lib/database/queries'
 import { activityDetector } from './activity-detector'
+import { calculateDistanceMeters } from './geo'
 
 type LocationUpdateCallback = (stats: SessionStats, activityState: ActivityState) => void
 type RunCompleteCallback = (runData: {
@@ -62,13 +63,20 @@ export class LocationProcessor {
         this.lastLocation = null
         this.totalDistance = 0
         this.maxVertical = 0
-        this.totalRuns = 1
+        this.totalRuns = 0
         this.maxSpeed = 0
         this.skiingStartTime = null
         this.totalSkiingTime = 0
         this.cumulativeVerticalDrop = 0
         this.highestAltitude = null
         activityDetector.reset()
+    }
+
+    pauseSkiing = () => {
+        if (this.skiingStartTime === null) return
+        const pauseTimestamp = this.lastLocation?.timestamp ?? this.skiingStartTime
+        this.totalSkiingTime += (pauseTimestamp - this.skiingStartTime) / 1000
+        this.skiingStartTime = null
     }
 
     restoreState = (stats: SessionStats, lastLocation: LocationPoint | null) => {
@@ -89,14 +97,16 @@ export class LocationProcessor {
         altitude: number,
         speed: number,
         accuracy: number,
-        timestamp: number
+        timestamp: number,
     ): Promise<{ locationId: number; stats: SessionStats; activityState: ActivityState } | null> => {
         if (!this.sessionId) {
             console.log('[LocationProcessor] No sessionId, skipping')
             return null
         }
 
-        console.log(`[LocationProcessor] Processing: speed=${(speed * 3.6).toFixed(1)}km/h, accuracy=${accuracy.toFixed(0)}m, alt=${altitude.toFixed(0)}m`)
+        console.log(
+            `[LocationProcessor] Processing: speed=${(speed * 3.6).toFixed(1)}km/h, accuracy=${accuracy.toFixed(0)}m, alt=${altitude.toFixed(0)}m`,
+        )
 
         if (accuracy > NOISE_FILTER_CONFIG.minAccuracy) {
             console.log(`[LocationProcessor] Accuracy too low (${accuracy}m > ${NOISE_FILTER_CONFIG.minAccuracy}m), skipping`)
@@ -126,16 +136,11 @@ export class LocationProcessor {
             accuracy,
             timestamp,
             activityState,
-            this.segmentIndex
+            this.segmentIndex,
         )
 
         if (this.lastLocation) {
-            const distance = this.calculateDistance(
-                this.lastLocation.latitude,
-                this.lastLocation.longitude,
-                latitude,
-                longitude
-            )
+            const distance = calculateDistanceMeters(this.lastLocation.latitude, this.lastLocation.longitude, latitude, longitude)
 
             this.totalDistance += distance
 
@@ -209,25 +214,6 @@ export class LocationProcessor {
         this.totalRuns++
     }
 
-    private calculateDistance = (
-        lat1: number,
-        lon1: number,
-        lat2: number,
-        lon2: number
-    ) => {
-        const R = 6371000
-        const dLat = ((lat2 - lat1) * Math.PI) / 180
-        const dLon = ((lon2 - lon1) * Math.PI) / 180
-        const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos((lat1 * Math.PI) / 180) *
-                Math.cos((lat2 * Math.PI) / 180) *
-                Math.sin(dLon / 2) *
-                Math.sin(dLon / 2)
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-        return R * c
-    }
-
     setupRunCompleteHandler = () => {
         activityDetector.setRunCompleteCallback(async (runData: CurrentRunData) => {
             if (!this.sessionId) return
@@ -238,8 +224,7 @@ export class LocationProcessor {
 
             const duration = (endTime - runData.startTime) / 1000
             const verticalDrop = runData.startAltitude - endLocation.altitude
-            const avgSpeed =
-                runData.speedCount > 0 ? runData.totalSpeed / runData.speedCount : 0
+            const avgSpeed = runData.speedCount > 0 ? runData.totalSpeed / runData.speedCount : 0
 
             await queries.saveRun(
                 this.sessionId,
@@ -251,7 +236,7 @@ export class LocationProcessor {
                 verticalDrop,
                 runData.maxSpeed,
                 avgSpeed,
-                duration
+                duration,
             )
 
             this.totalRuns++

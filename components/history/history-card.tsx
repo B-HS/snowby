@@ -13,7 +13,7 @@ import { formatStatValue } from '@/lib/units'
 import { cn, getImageUrl } from '@/lib/utils'
 import { findResortByCoordinate } from '@/lib/utils/resort-matcher'
 import { AlertTriangle, EyeOff, MapPin, MoreVertical, User, UserMinus, UserPlus } from 'lucide-react-native'
-import { FC, useMemo, useState } from 'react'
+import { FC, useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { HistoryCardItem } from './history-card-item'
 
@@ -58,12 +58,7 @@ export const HistoryCard: FC<HistoryCardProps> = ({
     const [isProfileModalVisible, setIsProfileModalVisible] = useState(false)
     const [isDetailModalVisible, setIsDetailModalVisible] = useState(false)
 
-    const resort = useMemo(() => {
-        if (locationLatitude && locationLongitude) {
-            return findResortByCoordinate(locationLatitude, locationLongitude)
-        }
-        return null
-    }, [locationLatitude, locationLongitude])
+    const resort = locationLatitude && locationLongitude ? findResortByCoordinate(locationLatitude, locationLongitude) : null
 
     const handleFollowToggle = () => {
         if (!userId) return
@@ -96,10 +91,7 @@ export const HistoryCard: FC<HistoryCardProps> = ({
         <>
             <View className='border border-border rounded'>
                 <View className='bg-secondary/50 flex flex-row items-center justify-between p-2 px-3'>
-                    <Pressable
-                        onPress={handleUserPress}
-                        disabled={!isPublic}
-                        className='flex gap-2 flex-row items-center flex-1'>
+                    <Pressable onPress={handleUserPress} disabled={!isPublic} className='flex gap-2 flex-row items-center flex-1'>
                         <Avatar alt={`${displayUsername}'s Avatar`} className='size-8'>
                             {isPublic ? (
                                 <>
@@ -115,9 +107,7 @@ export const HistoryCard: FC<HistoryCardProps> = ({
                             )}
                         </Avatar>
                         <View className='flex flex-col'>
-                            <Text className={cn('text-md font-bold', !isPublic && 'text-primary/60')}>
-                                {displayUsername}
-                            </Text>
+                            <Text className={cn('text-md font-bold', !isPublic && 'text-primary/60')}>{displayUsername}</Text>
                             <View className='flex gap-px flex-row items-center'>
                                 <Icon as={MapPin} size={12} className='text-primary/80' />
                                 <Text className='text-sm text-primary/80'>
@@ -135,14 +125,8 @@ export const HistoryCard: FC<HistoryCardProps> = ({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
                                 <DropdownMenuItem onPress={handleFollowToggle}>
-                                    <Icon
-                                        as={isFollowing ? UserMinus : UserPlus}
-                                        size={16}
-                                        className='text-foreground'
-                                    />
-                                    <Text>
-                                        {isFollowing ? t('history.unfollow') : t('history.follow')}
-                                    </Text>
+                                    <Icon as={isFollowing ? UserMinus : UserPlus} size={16} className='text-foreground' />
+                                    <Text>{isFollowing ? t('history.unfollow') : t('history.follow')}</Text>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onPress={handleHide}>
                                     <Icon as={EyeOff} size={16} className='text-foreground' />
@@ -166,9 +150,10 @@ export const HistoryCard: FC<HistoryCardProps> = ({
                     <View className='flex flex-row flex-wrap'>
                         {Object.entries(HISTORY_CARD_ITEM_SETTINGS).map(([key, item], idx) => {
                             const rawValue = rest[key as keyof typeof rest]
-                            const value = key === 'type' && typeof rawValue === 'string'
-                                ? t(`user.${rawValue}`)
-                                : formatStatValue(rawValue, item.unitType, measurementUnit)
+                            const value =
+                                key === 'type' && typeof rawValue === 'string'
+                                    ? t(`user.${rawValue}`)
+                                    : formatStatValue(rawValue, item.unitType, measurementUnit)
                             return (
                                 <HistoryCardItem
                                     key={key}
@@ -185,14 +170,10 @@ export const HistoryCard: FC<HistoryCardProps> = ({
             <UserProfileModal
                 visible={isProfileModalVisible}
                 onClose={() => setIsProfileModalVisible(false)}
-                userId={isPublic ? userId ?? null : null}
+                userId={isPublic ? (userId ?? null) : null}
             />
 
-            <HistoryDetailModal
-                visible={isDetailModalVisible}
-                onClose={() => setIsDetailModalVisible(false)}
-                activityId={activityId ?? null}
-            />
+            <HistoryDetailModal visible={isDetailModalVisible} onClose={() => setIsDetailModalVisible(false)} activityId={activityId ?? null} />
         </>
     )
 }

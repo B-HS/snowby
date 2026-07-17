@@ -1,30 +1,18 @@
 import { getDatabase } from './db'
-import type {
-    TrackingSession,
-    LocationPoint,
-    RunData,
-    PhotoData,
-    SessionStats,
-    ActivityState,
-} from '@/lib/tracking/tracking.types'
+import type { TrackingSession, LocationPoint, RunData, PhotoData, SessionStats, ActivityState } from '@/lib/tracking/tracking.types'
 
 const generateId = () => {
     return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
 }
 
-export const createSession = async (
-    userId: string,
-    startTime: number,
-    startLatitude: number,
-    startLongitude: number
-): Promise<TrackingSession> => {
+export const createSession = async (userId: string, startTime: number, startLatitude: number, startLongitude: number): Promise<TrackingSession> => {
     const db = await getDatabase()
     const id = generateId()
 
     await db.runAsync(
         `INSERT INTO sessions (id, user_id, start_time, start_latitude, start_longitude, total_runs)
-         VALUES (?, ?, ?, ?, ?, 1)`,
-        [id, userId, startTime, startLatitude, startLongitude]
+         VALUES (?, ?, ?, ?, ?, 0)`,
+        [id, userId, startTime, startLatitude, startLongitude],
     )
 
     const session = await getSession(id)
@@ -90,10 +78,7 @@ export const getUnfinishedSession = async (userId: string): Promise<TrackingSess
         is_synced: number
         last_synced_location_id: number
         created_at: number
-    }>(
-        `SELECT * FROM sessions WHERE user_id = ? AND is_completed = 0 ORDER BY start_time DESC LIMIT 1`,
-        [userId]
-    )
+    }>(`SELECT * FROM sessions WHERE user_id = ? AND is_completed = 0 ORDER BY start_time DESC LIMIT 1`, [userId])
 
     if (!result) return null
 
@@ -123,23 +108,13 @@ export const updateSessionStats = async (sessionId: string, stats: SessionStats)
          total_distance = ?, max_vertical = ?, total_runs = ?,
          max_speed = ?, time_on_slope = ?
          WHERE id = ?`,
-        [
-            stats.totalDistance,
-            stats.maxVertical,
-            stats.totalRuns,
-            stats.maxSpeed,
-            stats.timeOnSlope,
-            sessionId,
-        ]
+        [stats.totalDistance, stats.maxVertical, stats.totalRuns, stats.maxSpeed, stats.timeOnSlope, sessionId],
     )
 }
 
 export const completeSession = async (sessionId: string, endTime: number) => {
     const db = await getDatabase()
-    await db.runAsync(
-        `UPDATE sessions SET end_time = ?, is_completed = 1 WHERE id = ?`,
-        [endTime, sessionId]
-    )
+    await db.runAsync(`UPDATE sessions SET end_time = ?, is_completed = 1 WHERE id = ?`, [endTime, sessionId])
 }
 
 export const markSessionSynced = async (sessionId: string) => {
@@ -149,10 +124,7 @@ export const markSessionSynced = async (sessionId: string) => {
 
 export const updateLastSyncedLocationId = async (sessionId: string, locationId: number) => {
     const db = await getDatabase()
-    await db.runAsync(
-        `UPDATE sessions SET last_synced_location_id = ? WHERE id = ?`,
-        [locationId, sessionId]
-    )
+    await db.runAsync(`UPDATE sessions SET last_synced_location_id = ? WHERE id = ?`, [locationId, sessionId])
 }
 
 export const deleteSessionData = async (sessionId: string) => {
@@ -172,14 +144,14 @@ export const saveLocation = async (
     accuracy: number,
     timestamp: number,
     activityState: ActivityState,
-    segmentIndex: number = 0
+    segmentIndex: number = 0,
 ): Promise<number> => {
     const db = await getDatabase()
     const result = await db.runAsync(
         `INSERT INTO locations
          (session_id, latitude, longitude, altitude, speed, accuracy, timestamp, activity_state, segment_index)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [sessionId, latitude, longitude, altitude, speed, accuracy, timestamp, activityState, segmentIndex]
+        [sessionId, latitude, longitude, altitude, speed, accuracy, timestamp, activityState, segmentIndex],
     )
     return result.lastInsertRowId
 }
@@ -237,11 +209,7 @@ export const getLocationsGroupedBySegment = async (sessionId: string): Promise<[
     return segments
 }
 
-export const getUnsyncedLocations = async (
-    sessionId: string,
-    afterId: number,
-    limit: number = 100
-): Promise<LocationPoint[]> => {
+export const getUnsyncedLocations = async (sessionId: string, afterId: number, limit: number = 100): Promise<LocationPoint[]> => {
     const db = await getDatabase()
     const results = await db.getAllAsync<{
         id: number
@@ -260,7 +228,7 @@ export const getUnsyncedLocations = async (
          WHERE session_id = ? AND id > ? AND is_synced = 0
          ORDER BY timestamp ASC
          LIMIT ?`,
-        [sessionId, afterId, limit]
+        [sessionId, afterId, limit],
     )
 
     return results.map((r) => ({
@@ -287,10 +255,7 @@ export const markLocationsSynced = async (ids: number[]) => {
 
 export const getLocationCount = async (sessionId: string): Promise<number> => {
     const db = await getDatabase()
-    const result = await db.getFirstAsync<{ count: number }>(
-        `SELECT COUNT(*) as count FROM locations WHERE session_id = ?`,
-        [sessionId]
-    )
+    const result = await db.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM locations WHERE session_id = ?`, [sessionId])
     return result?.count ?? 0
 }
 
@@ -308,10 +273,7 @@ export const getLastLocation = async (sessionId: string): Promise<LocationPoint 
         activity_state: string
         segment_index: number
         is_synced: number
-    }>(
-        `SELECT * FROM locations WHERE session_id = ? ORDER BY timestamp DESC LIMIT 1`,
-        [sessionId]
-    )
+    }>(`SELECT * FROM locations WHERE session_id = ? ORDER BY timestamp DESC LIMIT 1`, [sessionId])
 
     if (!result) return null
 
@@ -330,10 +292,7 @@ export const getLastLocation = async (sessionId: string): Promise<LocationPoint 
     }
 }
 
-export const getRecentLocations = async (
-    sessionId: string,
-    count: number
-): Promise<LocationPoint[]> => {
+export const getRecentLocations = async (sessionId: string, count: number): Promise<LocationPoint[]> => {
     const db = await getDatabase()
     const results = await db.getAllAsync<{
         id: number
@@ -347,10 +306,7 @@ export const getRecentLocations = async (
         activity_state: string
         segment_index: number
         is_synced: number
-    }>(
-        `SELECT * FROM locations WHERE session_id = ? ORDER BY timestamp DESC LIMIT ?`,
-        [sessionId, count]
-    )
+    }>(`SELECT * FROM locations WHERE session_id = ? ORDER BY timestamp DESC LIMIT ?`, [sessionId, count])
 
     return results
         .map((r) => ({
@@ -373,7 +329,7 @@ export const getMaxSegmentIndex = async (sessionId: string): Promise<number> => 
     const db = await getDatabase()
     const result = await db.getFirstAsync<{ max_segment: number | null }>(
         `SELECT MAX(segment_index) as max_segment FROM locations WHERE session_id = ?`,
-        [sessionId]
+        [sessionId],
     )
     return result?.max_segment ?? 0
 }
@@ -388,7 +344,7 @@ export const saveRun = async (
     verticalDrop: number,
     maxSpeed: number,
     avgSpeed: number,
-    duration: number
+    duration: number,
 ): Promise<string> => {
     const db = await getDatabase()
     const id = generateId()
@@ -398,19 +354,7 @@ export const saveRun = async (
          (id, session_id, start_time, end_time, start_altitude, end_altitude,
           distance, vertical_drop, max_speed, avg_speed, duration)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-            id,
-            sessionId,
-            startTime,
-            endTime,
-            startAltitude,
-            endAltitude,
-            distance,
-            verticalDrop,
-            maxSpeed,
-            avgSpeed,
-            duration,
-        ]
+        [id, sessionId, startTime, endTime, startAltitude, endAltitude, distance, verticalDrop, maxSpeed, avgSpeed, duration],
     )
 
     return id
@@ -464,10 +408,7 @@ export const getUnsyncedRuns = async (sessionId: string): Promise<RunData[]> => 
         avg_speed: number
         duration: number
         is_synced: number
-    }>(
-        `SELECT * FROM runs WHERE session_id = ? AND is_synced = 0 ORDER BY start_time ASC`,
-        [sessionId]
-    )
+    }>(`SELECT * FROM runs WHERE session_id = ? AND is_synced = 0 ORDER BY start_time ASC`, [sessionId])
 
     return results.map((r) => ({
         id: r.id,
@@ -492,18 +433,12 @@ export const markRunsSynced = async (ids: string[]) => {
     await db.runAsync(`UPDATE runs SET is_synced = 1 WHERE id IN (${placeholders})`, ids)
 }
 
-export const savePhoto = async (
-    sessionId: string,
-    uri: string,
-    takenAt: number,
-    latitude?: number,
-    longitude?: number
-): Promise<number> => {
+export const savePhoto = async (sessionId: string, uri: string, takenAt: number, latitude?: number, longitude?: number): Promise<number> => {
     const db = await getDatabase()
     const result = await db.runAsync(
         `INSERT INTO photos (session_id, uri, latitude, longitude, taken_at)
          VALUES (?, ?, ?, ?, ?)`,
-        [sessionId, uri, latitude ?? null, longitude ?? null, takenAt]
+        [sessionId, uri, latitude ?? null, longitude ?? null, takenAt],
     )
     return result.lastInsertRowId
 }
@@ -547,10 +482,7 @@ export const getCompletedSessions = async (userId: string): Promise<TrackingSess
         is_synced: number
         last_synced_location_id: number
         created_at: number
-    }>(
-        `SELECT * FROM sessions WHERE user_id = ? AND is_completed = 1 ORDER BY start_time DESC`,
-        [userId]
-    )
+    }>(`SELECT * FROM sessions WHERE user_id = ? AND is_completed = 1 ORDER BY start_time DESC`, [userId])
 
     return results.map((r) => ({
         id: r.id,
@@ -573,10 +505,7 @@ export const getCompletedSessions = async (userId: string): Promise<TrackingSess
 
 export const migrateAnonymousSessions = async (newUserId: string): Promise<number> => {
     const db = await getDatabase()
-    const result = await db.runAsync(
-        `UPDATE sessions SET user_id = ? WHERE user_id = 'anonymous'`,
-        [newUserId]
-    )
+    const result = await db.runAsync(`UPDATE sessions SET user_id = ? WHERE user_id = 'anonymous'`, [newUserId])
     return result.changes
 }
 
@@ -598,10 +527,7 @@ export const getUnsyncedSessions = async (userId: string): Promise<TrackingSessi
         is_synced: number
         last_synced_location_id: number
         created_at: number
-    }>(
-        `SELECT * FROM sessions WHERE user_id = ? AND is_synced = 0 ORDER BY start_time ASC`,
-        [userId]
-    )
+    }>(`SELECT * FROM sessions WHERE user_id = ? AND is_synced = 0 ORDER BY start_time ASC`, [userId])
 
     return results.map((r) => ({
         id: r.id,

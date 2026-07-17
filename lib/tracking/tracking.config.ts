@@ -48,5 +48,3 @@ export const SYNC_CONFIG = {
 } as const
 
 export const RESTING_ALERT_THRESHOLD = 30 * 60 * 1000
-
-export const BACKGROUND_TASK_NAME = 'snowby-location-tracking'

@@ -6,7 +6,7 @@ import { useRankingsByBounds } from '@/entities/rankings/rankings.query'
 import { useTranslation } from '@/lib/i18n'
 import type { RankingType } from '@/lib/types'
 import { getAllResortsWithBounds } from '@/lib/utils/resort-matcher'
-import { useCallback, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { ActivityIndicator, ScrollView, View } from 'react-native'
 
 const Rank = () => {
@@ -14,37 +14,20 @@ const Rank = () => {
     const [selectedResortId, setSelectedResortId] = useState<string | null>(null)
     const [rankingType, setRankingType] = useState<RankingType>('speed')
 
-    const resorts = useMemo(() => getAllResortsWithBounds(), [])
-
-    const resortOptions: SearchableSelectOption[] = useMemo(
-        () =>
-            resorts.map((resort) => ({
-                value: resort.id,
-                label: resort.name,
-                subLabel: resort.region,
-            })),
-        [resorts]
-    )
-
-    const selectedResort = useMemo(
-        () => resorts.find((r) => r.id === selectedResortId) ?? null,
-        [resorts, selectedResortId]
-    )
+    const resorts = getAllResortsWithBounds()
+    const resortOptions: SearchableSelectOption[] = resorts.map((resort) => ({ value: resort.id, label: resort.name, subLabel: resort.region }))
+    const selectedResort = resorts.find((r) => r.id === selectedResortId) ?? null
 
     const { data: rankings, isLoading: isRankingsLoading } = useRankingsByBounds({
         bounds: selectedResort?.bounds ?? null,
         type: rankingType,
     })
 
-    const handleResortChange = useCallback((value: string | null) => {
-        setSelectedResortId(value)
-    }, [])
+    const handleResortChange = (value: string | null) => setSelectedResortId(value)
 
-    const handleRankingTypeChange = useCallback((value: string | undefined) => {
-        if (value) {
-            setRankingType(value as RankingType)
-        }
-    }, [])
+    const handleRankingTypeChange = (value: string | undefined) => {
+        if (value === 'speed' || value === 'distance' || value === 'count') setRankingType(value)
+    }
 
     return (
         <View className='flex-1 gap-2 p-3.5'>
