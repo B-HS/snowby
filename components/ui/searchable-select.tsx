@@ -2,18 +2,8 @@ import { Icon } from '@/components/ui/icon'
 import { Text } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 import { Check, ChevronDown, Search, X } from 'lucide-react-native'
-import { memo, useCallback, useMemo, useRef, useState } from 'react'
-import {
-    FlatList,
-    Keyboard,
-    Modal,
-    Platform,
-    Pressable,
-    TextInput,
-    TouchableOpacity,
-    View,
-    type ListRenderItemInfo,
-} from 'react-native'
+import { memo, useRef, useState } from 'react'
+import { FlatList, Keyboard, Modal, Platform, Pressable, TextInput, TouchableOpacity, View, type ListRenderItemInfo } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export interface SearchableSelectOption {
@@ -37,38 +27,25 @@ interface SearchableSelectProps {
 
 const ITEM_HEIGHT = 48
 
-const OptionItem = memo(
-    ({
-        item,
-        isSelected,
-        onPress,
-    }: {
-        item: SearchableSelectOption
-        isSelected: boolean
-        onPress: () => void
-    }) => (
-        <TouchableOpacity
-            onPress={onPress}
-            className={cn(
-                'flex-row items-center justify-between px-4 py-3',
-                isSelected && 'bg-accent/50'
-            )}
-            style={{ height: ITEM_HEIGHT }}
-            activeOpacity={0.7}>
-            <View className='flex-1 pr-2'>
-                <Text className='text-foreground text-sm' numberOfLines={1}>
-                    {item.label}
+const OptionItem = memo(({ item, isSelected, onPress }: { item: SearchableSelectOption; isSelected: boolean; onPress: () => void }) => (
+    <TouchableOpacity
+        onPress={onPress}
+        className={cn('flex-row items-center justify-between px-4 py-3', isSelected && 'bg-accent/50')}
+        style={{ height: ITEM_HEIGHT }}
+        activeOpacity={0.7}>
+        <View className='flex-1 pr-2'>
+            <Text className='text-foreground text-sm' numberOfLines={1}>
+                {item.label}
+            </Text>
+            {item.subLabel && (
+                <Text className='text-muted-foreground text-xs' numberOfLines={1}>
+                    {item.subLabel}
                 </Text>
-                {item.subLabel && (
-                    <Text className='text-muted-foreground text-xs' numberOfLines={1}>
-                        {item.subLabel}
-                    </Text>
-                )}
-            </View>
-            {isSelected && <Icon as={Check} size={16} className='text-primary' />}
-        </TouchableOpacity>
-    )
-)
+            )}
+        </View>
+        {isSelected && <Icon as={Check} size={16} className='text-primary' />}
+    </TouchableOpacity>
+))
 
 OptionItem.displayName = 'OptionItem'
 
@@ -89,81 +66,43 @@ export const SearchableSelect = ({
     const inputRef = useRef<TextInput>(null)
     const insets = useSafeAreaInsets()
 
-    const selectedOption = useMemo(
-        () => options.find((opt) => opt.value === value),
-        [options, value]
-    )
+    const selectedOption = options.find((opt) => opt.value === value)
 
-    const filteredOptions = useMemo(() => {
-        if (!searchQuery.trim()) return options
-        const query = searchQuery.toLowerCase().trim()
-        return options.filter(
-            (opt) =>
-                opt.label.toLowerCase().includes(query) ||
-                opt.subLabel?.toLowerCase().includes(query)
-        )
-    }, [options, searchQuery])
+    const query = searchQuery.toLowerCase().trim()
+    const filteredOptions = query
+        ? options.filter((opt) => opt.label.toLowerCase().includes(query) || opt.subLabel?.toLowerCase().includes(query))
+        : options
 
-    const allOptions = useMemo(() => {
-        if (!showAllOption) return filteredOptions
-        const allOption: SearchableSelectOption = {
-            value: '__all__',
-            label: allOptionLabel,
-        }
-        return [allOption, ...filteredOptions]
-    }, [filteredOptions, showAllOption, allOptionLabel])
+    const allOptions = showAllOption ? [{ value: '__all__', label: allOptionLabel }, ...filteredOptions] : filteredOptions
 
-    const handleOpen = useCallback(() => {
+    const handleOpen = () => {
         setIsOpen(true)
         setSearchQuery('')
-    }, [])
+    }
 
-    const handleClose = useCallback(() => {
+    const handleClose = () => {
         setIsOpen(false)
         setSearchQuery('')
         Keyboard.dismiss()
-    }, [])
+    }
 
-    const handleSelect = useCallback(
-        (optionValue: string) => {
-            if (optionValue === '__all__') {
-                onValueChange(null)
-            } else {
-                onValueChange(optionValue)
-            }
-            handleClose()
-        },
-        [onValueChange, handleClose]
-    )
+    const handleSelect = (optionValue: string) => {
+        onValueChange(optionValue === '__all__' ? null : optionValue)
+        handleClose()
+    }
 
-    const renderItem = useCallback(
-        ({ item }: ListRenderItemInfo<SearchableSelectOption>) => {
-            const isSelected =
-                (item.value === '__all__' && value === null) || item.value === value
-            return (
-                <OptionItem
-                    item={item}
-                    isSelected={isSelected}
-                    onPress={() => handleSelect(item.value)}
-                />
-            )
-        },
-        [value, handleSelect]
-    )
+    const renderItem = ({ item }: ListRenderItemInfo<SearchableSelectOption>) => {
+        const isSelected = (item.value === '__all__' && value === null) || item.value === value
+        return <OptionItem item={item} isSelected={isSelected} onPress={() => handleSelect(item.value)} />
+    }
 
-    const keyExtractor = useCallback(
-        (item: SearchableSelectOption, index: number) => `${item.value}-${index}`,
-        []
-    )
+    const keyExtractor = (item: SearchableSelectOption, index: number) => `${item.value}-${index}`
 
-    const getItemLayout = useCallback(
-        (_: SearchableSelectOption[] | null | undefined, index: number) => ({
-            length: ITEM_HEIGHT,
-            offset: ITEM_HEIGHT * index,
-            index,
-        }),
-        []
-    )
+    const getItemLayout = (_: ArrayLike<SearchableSelectOption> | null | undefined, index: number) => ({
+        length: ITEM_HEIGHT,
+        offset: ITEM_HEIGHT * index,
+        index,
+    })
 
     const displayValue = selectedOption?.label ?? placeholder
 
@@ -173,27 +112,16 @@ export const SearchableSelect = ({
                 onPress={handleOpen}
                 className={cn(
                     'border-input dark:bg-input/30 bg-background flex h-10 flex-row items-center justify-between rounded-md border px-3 shadow-sm shadow-black/5',
-                    className
+                    className,
                 )}>
-                <Text
-                    className={cn(
-                        'text-foreground flex-1 text-sm',
-                        !selectedOption && 'text-muted-foreground'
-                    )}
-                    numberOfLines={1}>
+                <Text className={cn('text-foreground flex-1 text-sm', !selectedOption && 'text-muted-foreground')} numberOfLines={1}>
                     {displayValue}
                 </Text>
                 <Icon as={ChevronDown} size={16} className='text-muted-foreground' />
             </Pressable>
 
-            <Modal
-                visible={isOpen}
-                animationType='slide'
-                presentationStyle='pageSheet'
-                onRequestClose={handleClose}>
-                <View
-                    className='bg-background flex-1'
-                    style={{ paddingTop: Platform.OS === 'ios' ? 0 : insets.top }}>
+            <Modal visible={isOpen} animationType='slide' presentationStyle='pageSheet' onRequestClose={handleClose}>
+                <View className='bg-background flex-1' style={{ paddingTop: Platform.OS === 'ios' ? 0 : insets.top }}>
                     <View className='border-border flex-row items-center gap-2 border-b px-4 py-3'>
                         <View className='bg-secondary/50 flex-1 flex-row items-center rounded-lg px-3'>
                             <Icon as={Search} size={18} className='text-muted-foreground' />

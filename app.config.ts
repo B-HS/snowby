@@ -9,25 +9,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // icon: './assets/images/icon.png',
     scheme: 'snowby',
     userInterfaceStyle: 'automatic',
-    newArchEnabled: true,
-    splash: {
-        // image: './assets/images/splash.png',
-        resizeMode: 'contain',
-        backgroundColor: '#ffffff',
-    },
     assetBundlePatterns: ['**/*'],
     ios: {
         supportsTablet: true,
         bundleIdentifier: 'com.snowby.app',
         infoPlist: {
             NSLocationWhenInUseUsageDescription: 'This app uses your location to track your ski/snowboard activities.',
-            NSLocationAlwaysAndWhenInUseUsageDescription: 'This app uses your location to track your ski/snowboard activities even in the background.',
-            NSPhotoLibraryUsageDescription: 'This app accesses your photos to display pictures taken during your ski/snowboard activities on the map.',
+            NSLocationAlwaysAndWhenInUseUsageDescription:
+                'This app uses your location to track your ski/snowboard activities even in the background.',
+            NSPhotoLibraryUsageDescription:
+                'This app accesses your photos to display pictures taken during your ski/snowboard activities on the map.',
             UIBackgroundModes: ['location', 'fetch'],
         },
     },
     android: {
-        edgeToEdgeEnabled: true,
         adaptiveIcon: {
             // foregroundImage: './assets/images/adaptive-icon.png',
             backgroundColor: '#ffffff',
@@ -42,6 +37,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     plugins: [
         'expo-router',
         'expo-localization',
+        [
+            'expo-splash-screen',
+            {
+                // image: './assets/images/splash.png',
+                resizeMode: 'contain',
+                backgroundColor: '#ffffff',
+            },
+        ],
         [
             'expo-maps',
             {
@@ -68,5 +71,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     experiments: {
         typedRoutes: true,
+        reactCompiler: true,
     },
 })

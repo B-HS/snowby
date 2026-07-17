@@ -12,31 +12,26 @@ import { useAppStore } from '@/lib/store'
 import type { Theme } from '@/lib/types'
 import { Database, Globe, RefreshCw, Ruler, Sun } from 'lucide-react-native'
 import { useColorScheme } from 'nativewind'
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { Alert, Appearance, ScrollView } from 'react-native'
 
 const Setting = () => {
     const { t } = useTranslation()
     const { setColorScheme } = useColorScheme()
     const { locale, theme, measurementUnit, resortsData, setResortsData } = useAppStore()
-    const {
-        setLocaleWithSync,
-        setThemeWithSync,
-        setMeasurementUnitWithSync,
-    } = useSettingsSync()
+    const { setLocaleWithSync, setThemeWithSync, setMeasurementUnitWithSync } = useSettingsSync()
     const [isRefreshing, setIsRefreshing] = useState(false)
 
     const handleThemeChange = (value: Theme) => {
         setThemeWithSync(value)
         if (value === 'system') {
-            const systemTheme = Appearance.getColorScheme() ?? 'light'
-            setColorScheme(systemTheme)
+            setColorScheme(Appearance.getColorScheme() === 'dark' ? 'dark' : 'light')
         } else {
             setColorScheme(value)
         }
     }
 
-    const handleRefreshResorts = useCallback(async () => {
+    const handleRefreshResorts = async () => {
         setIsRefreshing(true)
         try {
             const data = await fetchResorts()
@@ -51,7 +46,7 @@ const Setting = () => {
         } finally {
             setIsRefreshing(false)
         }
-    }, [resortsData.version, setResortsData, t])
+    }
 
     return (
         <ScrollView className='p-3.5' contentContainerClassName='gap-3.5'>
